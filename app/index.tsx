@@ -5,138 +5,120 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Image,
   FlatList,
   Dimensions,
-  SafeAreaView,
-  StatusBar,
-  RefreshControl,
   Modal,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import authService, { AuthResponse } from '../services/authService';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import productService, { Product, Category, SaleProduct } from '@/services/productService';
 
 const { width } = Dimensions.get('window');
 
-interface Banner {
-  id: number;
-  image: string;
-  title: string;
-  subtitle: string;
+interface User {
+  _id?: string;
+  fullname?: string;
+  email?: string;
+  phone?: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: string;
-  image: string;
-  rating: number;
-  discount?: string;
-  originalPrice?: string;
-}
-
-export default function Home() {
-  const { isAuthenticated, signOut } = useAuth();
-  const [user, setUser] = useState<AuthResponse | null>(null);
-  const [searchText, setSearchText] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+export default function HomeScreen() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [saleProducts, setSaleProducts] = useState<SaleProduct[]>([]);
+  const [maleProducts, setMaleProducts] = useState<Product[]>([]);
+  const [femaleProducts, setFemaleProducts] = useState<Product[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - trong thực tế sẽ fetch từ API
-  const mockBanners: Banner[] = [
+  // Banner data với thiết kế đẹp
+  const banners = [
     {
       id: 1,
-      image: 'https://static.vecteezy.com/system/resources/previews/044/637/679/non_2x/summer-sale-poster-or-banner-template-featuring-a-tropical-beach-scene-with-sun-and-party-elements-product-display-tropical-summer-scene-perfect-for-promoting-your-summer-products-on-blue-background-vector.jpg',
-      title: 'Summer Sale',
-      subtitle: 'Up to 50% Off'
+      image: 'https://img.freepik.com/free-vector/fashion-sale-banner-template_23-2148622444.jpg',
+      title: 'Flash Sale 50%',
+      subtitle: 'Giảm giá lên đến 50% cho tất cả sản phẩm',
     },
     {
       id: 2,
-      image: 'https://img.freepik.com/premium-vector/fashion-sale-banner-template-with-colorful-background_23-2148622444.jpg',
-      title: 'New Arrivals',
-      subtitle: 'Exclusive Collection'
-    }
+      image: 'https://static.vecteezy.com/system/resources/previews/044/637/679/non_2x/summer-sale-poster-or-banner-template-featuring-a-tropical-beach-scene-with-sun-and-party-elements-product-display-tropical-summer-scene-perfect-for-promoting-your-summer-products-on-blue-background-vector.jpg',
+      title: 'Voucher 100K',
+      subtitle: 'Nhận ngay voucher 100.000đ cho đơn hàng đầu tiên',
+    },
+    {
+      id: 3,
+      image: 'https://img.freepik.com/free-vector/gradient-sale-background_23-2149050986.jpg',
+      title: 'Miễn phí vận chuyển',
+      subtitle: 'Free ship toàn quốc cho đơn hàng từ 299.000đ',
+    },
   ];
 
-  const mockCategories: Category[] = [
-    { id: '1', name: 'Fashion', icon: '👗', color: '#FF6B6B' },
-    { id: '2', name: 'Electronics', icon: '📱', color: '#4ECDC4' },
-    { id: '3', name: 'Home', icon: '🏠', color: '#45B7D1' },
-    { id: '4', name: 'Sports', icon: '⚽', color: '#96CEB4' },
-    { id: '5', name: 'Beauty', icon: '💄', color: '#FECA57' },
-    { id: '6', name: 'Books', icon: '📚', color: '#FF9FF3' },
-  ];
-
-  const mockProducts: Product[] = [
-    {
-      id: '1',
-      name: 'Wireless Headphones',
-      price: '2,990,000',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300',
-      rating: 4.5,
-      discount: '20%'
-    },
-    {
-      id: '2',
-      name: 'Fashion Sneakers',
-      price: '1,500,000',
-      image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=300',
-      rating: 4.8,
-      discount: '15%'
-    },
-    {
-      id: '3',
-      name: 'Smart Watch',
-      price: '5,990,000',
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300',
-      rating: 4.3,
-      originalPrice: '7,990,000'
-    },
-    {
-      id: '4',
-      name: 'Coffee Maker',
-      price: '3,200,000',
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=300',
-      rating: 4.6
-    }
+  // Quick actions data
+  const quickActions = [
+    { id: 1, icon: '⚡', title: 'Flash Sale', color: '#ff4757', action: 'sale' },
+    { id: 2, icon: '🎫', title: 'Voucher', color: '#ff6b35', action: 'voucher' },
+    { id: 3, icon: '🔥', title: 'Hàng mới', color: '#fed700', action: 'new' },
+    { id: 4, icon: '⭐', title: 'Bán chạy', color: '#ffa502', action: 'bestseller' },
   ];
 
   useEffect(() => {
-    loadUserInfo();
+    checkUserLoggedIn();
     loadData();
-  }, [isAuthenticated]);
 
-  const loadUserInfo = async () => {
+    // Auto slide banner
+    const interval = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const checkUserLoggedIn = async () => {
     try {
-      if (isAuthenticated) {
-        const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
       }
     } catch (error) {
-      console.error('Error loading user info:', error);
+      console.error('Lỗi khi kiểm tra đăng nhập:', error);
     }
   };
 
   const loadData = async () => {
     try {
-      // Trong thực tế sẽ gọi API để lấy dữ liệu
-      setCategories(mockCategories);
-      setFeaturedProducts(mockProducts);
-      setBanners(mockBanners);
+      setLoading(true);
+      
+      // Load data song song để tăng tốc độ
+      const [categoriesData, saleData, maleData, femaleData, bestSellingData] = 
+        await Promise.all([
+          productService.getCategories(),
+          productService.getSaleProducts(),
+          productService.getProductsByGender('Male', 4),
+          productService.getProductsByGender('Female', 4),
+          productService.getBestSellingProducts(6)
+        ]);
+
+      setCategories(categoriesData);
+      setSaleProducts(saleData);
+      setMaleProducts(maleData);
+      setFemaleProducts(femaleData);
+      setProducts(bestSellingData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Lỗi khi tải dữ liệu:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,245 +130,387 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await AsyncStorage.removeItem('user');
       setUser(null);
-      setShowUserMenu(false);
-      // Không redirect, chỉ cập nhật state
+      setIsModalVisible(false);
+      Alert.alert('Thành công', 'Đã đăng xuất thành công!');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi đăng xuất');
     }
   };
 
-  const handleUserMenuPress = () => {
-    setShowUserMenu(true);
+  const handleQuickAction = (action: string) => {
+    Alert.alert('Thông báo', `Bạn đã chọn: ${action}`);
+    // TODO: Navigate to specific screens based on action
   };
 
-  const handleLoginPress = () => {
-    setShowUserMenu(false);
-    router.push('/(auth)/sign-in');
+  const handleProductPress = (product: Product | SaleProduct) => {
+    Alert.alert('Sản phẩm', `Bạn đã chọn: ${product.name_product}`);
+    // TODO: Navigate to product detail screen
   };
 
-  const handleViewProfile = () => {
-    setShowUserMenu(false);
-    router.push('/profile/view');
+  const handleCategoryPress = (gender: string) => {
+    Alert.alert('Danh mục', `Xem sản phẩm: ${gender}`);
+    // TODO: Navigate to product list screen
   };
 
-  const handleEditProfile = () => {
-    setShowUserMenu(false);
-    router.push('/profile/edit');
-  };
-
-  const renderBanner = ({ item }: { item: Banner }) => (
-    <TouchableOpacity style={styles.bannerItem}>
-      <Image source={{ uri: item.image }} style={styles.bannerImage} />
-      <View style={styles.bannerOverlay}>
-        <Text style={styles.bannerTitle}>{item.title}</Text>
-        <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderCategory = ({ item }: { item: Category }) => (
-    <TouchableOpacity style={[styles.categoryItem, { backgroundColor: item.color }]}>
-      <Text style={styles.categoryIcon}>{item.icon}</Text>
-      <Text style={styles.categoryName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity style={styles.productCard}>
-      <View style={styles.productImageContainer}>
-        <Image source={{ uri: item.image }} style={styles.productImage} />
-        {item.discount && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>-{item.discount}</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Text style={styles.favoriteIcon}>♡</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <View style={styles.ratingContainer}>
-          <Text style={styles.ratingText}>⭐ {item.rating}</Text>
-        </View>
-        <View style={styles.priceContainer}>
-          <Text style={styles.productPrice}>{item.price}đ</Text>
-          {item.originalPrice && (
-            <Text style={styles.originalPrice}>{item.originalPrice}đ</Text>
+  const renderUserModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={isModalVisible}
+      onRequestClose={() => setIsModalVisible(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContent}>
+          {user ? (
+            <>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
+                  setIsModalVisible(false);
+                  router.push('/profile/view');
+                }}
+              >
+                <Text style={styles.modalOptionText}>👁️ Xem Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
+                  setIsModalVisible(false);
+                  router.push('/profile/edit');
+                }}
+              >
+                <Text style={styles.modalOptionText}>✏️ Cập nhật Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={handleLogout}
+              >
+                <Text style={styles.modalOptionText}>🚪 Đăng xuất</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setIsModalVisible(false);
+                router.push('/sign-in');
+              }}
+            >
+              <Text style={styles.modalOptionText}>🔑 Đăng nhập</Text>
+            </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.addToCartButton}>
-          <Text style={styles.addToCartText}>Thêm vào giỏ</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Xin chào!</Text>
-            <Text style={styles.userName}>
-              {isAuthenticated && user?.fullname ? user.fullname : 'Khách hàng'}
-            </Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
-              <Text style={styles.headerButtonText}>🔔</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
-              <Text style={styles.headerButtonText}>🛒</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton} onPress={handleUserMenuPress}>
-              <Text style={styles.headerButtonText}>👤</Text>
-            </TouchableOpacity>
-          </View>
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerContent}>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Text style={styles.logo}>👔 Fashion</Text>
         </View>
-        
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm kiếm sản phẩm..."
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          <TouchableOpacity style={styles.searchButton}>
-            <Text style={styles.searchButtonText}>🔍</Text>
+
+        {/* Search bar */}
+        <TouchableOpacity style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#666" />
+          <Text style={styles.searchPlaceholder}>Tìm kiếm sản phẩm...</Text>
+        </TouchableOpacity>
+
+        {/* Header icons */}
+        <View style={styles.headerIcons}>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Ionicons name="notifications-outline" size={24} color="#333" />
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>3</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Ionicons name="bag-outline" size={24} color="#333" />
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>2</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Ionicons name="person-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
+    </View>
+  );
 
-      {/* User Menu Modal */}
-      <Modal
-        visible={showUserMenu}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowUserMenu(false)}
+  const renderBanner = () => (
+    <View style={styles.bannerContainer}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(event) => {
+          const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+          setCurrentBanner(slideIndex);
+        }}
       >
+        {banners.map((banner) => (
+          <TouchableOpacity key={banner.id} style={styles.bannerSlide}>
+            <Image
+              source={{ uri: banner.image }}
+              style={styles.bannerImage}
+              resizeMode="cover"
+            />
+            <View style={styles.bannerOverlay}>
+              <View style={styles.bannerContent}>
+                <Text style={styles.bannerTitle}>{banner.title}</Text>
+                <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                <TouchableOpacity style={styles.bannerButton}>
+                  <Text style={styles.bannerButtonText}>Mua ngay</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <View style={styles.bannerIndicator}>
+        {banners.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.indicator,
+              index === currentBanner && styles.activeIndicator,
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderQuickActions = () => (
+    <View style={styles.quickActionsContainer}>
+      <View style={styles.quickActions}>
+        {quickActions.map((action) => (
+          <TouchableOpacity 
+            key={action.id} 
+            style={styles.quickAction}
+            onPress={() => handleQuickAction(action.action)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
+              <Text style={styles.quickActionEmoji}>{action.icon}</Text>
+            </View>
+            <Text style={styles.quickActionTitle}>{action.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderCategories = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Danh mục sản phẩm</Text>
+        <TouchableOpacity>
+          <Text style={styles.seeAll}>Xem tất cả</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.categoriesContainer}>
         <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowUserMenu(false)}
+          style={styles.categoryCard}
+          onPress={() => handleCategoryPress('Nam')}
         >
-          <View style={styles.userMenuContainer}>
-            {!isAuthenticated ? (
-              <TouchableOpacity style={styles.menuItem} onPress={handleLoginPress}>
-                <Text style={styles.menuItemText}>🔑 Đăng nhập</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-                <TouchableOpacity style={styles.menuItem} onPress={handleViewProfile}>
-                  <Text style={styles.menuItemText}>👁️ Xem Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={handleEditProfile}>
-                  <Text style={styles.menuItemText}>✏️ Cập nhật Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-                  <Text style={[styles.menuItemText, styles.logoutText]}>🚪 Đăng xuất</Text>
-                </TouchableOpacity>
-              </>
-            )}
+          <Image
+            source={{ uri: 'https://theme.hstatic.net/200000690725/1001078549/14/home_category_1_img.jpg?v=743' }}
+            style={styles.categoryBackgroundImage}
+            resizeMode="cover"
+          />
+          <View style={styles.categoryOverlay}>
+            <Text style={styles.categoryTitle}>Nam</Text>
           </View>
         </TouchableOpacity>
-      </Modal>
+        <TouchableOpacity 
+          style={styles.categoryCard}
+          onPress={() => handleCategoryPress('Nữ')}
+        >
+          <Image
+            source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1748127256/unnamed_pj2cqe.png' }}
+            style={styles.categoryBackgroundImage}
+            resizeMode="cover"
+          />
+          <View style={styles.categoryOverlay}>
+            <Text style={styles.categoryTitle}>Nữ</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.categoryCard}
+          onPress={() => handleCategoryPress('Unisex')}
+        >
+          <Image
+            source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1748126928/Gemini_Generated_Image_ai6lq2ai6lq2ai6l_1_vp9k9b.png' }}
+            style={styles.categoryBackgroundImage}
+            resizeMode="cover"
+          />
+          <View style={styles.categoryOverlay}>
+            <Text style={styles.categoryTitle}>Unisex</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderSaleProducts = () => {
+    if (saleProducts.length === 0) return null;
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>🔥 Sản phẩm giảm giá</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAll}>Xem tất cả</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={saleProducts}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item._id}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={styles.saleProductCard}
+              onPress={() => handleProductPress(item)}
+            >
+              <Image
+                source={{ uri: item.image }}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+              <View style={styles.saleTag}>
+                <Text style={styles.saleText}>-{item.promotion}%</Text>
+              </View>
+              <View style={styles.favoriteButton}>
+                <Ionicons name="heart-outline" size={20} color="#ff4757" />
+              </View>
+              <View style={styles.productInfo}>
+                <Text style={styles.productName} numberOfLines={2}>
+                  {item.name_product}
+                </Text>
+                <View style={styles.priceContainer}>
+                  <Text style={styles.salePrice}>
+                    {productService.formatPrice(item.salePrice)}
+                  </Text>
+                  <Text style={styles.originalPrice}>
+                    {productService.formatPrice(item.price_product)}
+                  </Text>
+                </View>
+                <View style={styles.ratingContainer}>
+                  <Text style={styles.rating}>⭐ 4.5</Text>
+                  <Text style={styles.soldCount}>Đã bán {item.number}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.productsList}
+        />
+      </View>
+    );
+  };
+
+  const renderProductGrid = (title: string, products: Product[], icon: string = '') => {
+    if (products.length === 0) return null;
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{icon} {title}</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAll}>Xem tất cả</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.productGrid}>
+          {products.map((product) => (
+            <TouchableOpacity 
+              key={product._id} 
+              style={styles.gridProductCard}
+              onPress={() => handleProductPress(product)}
+            >
+              <Image
+                source={{ uri: product.image }}
+                style={styles.gridProductImage}
+                resizeMode="cover"
+              />
+              <View style={styles.gridFavoriteButton}>
+                <Ionicons name="heart-outline" size={16} color="#ff4757" />
+              </View>
+              <View style={styles.gridProductInfo}>
+                <Text style={styles.gridProductName} numberOfLines={2}>
+                  {product.name_product}
+                </Text>
+                <Text style={styles.gridProductPrice}>
+                  {productService.formatPrice(product.price_product)}
+                </Text>
+                <View style={styles.gridRatingContainer}>
+                  <Text style={styles.gridRating}>⭐ 4.3</Text>
+                  <Text style={styles.gridSoldCount}>{product.number} đã bán</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#666" />
+      <Text style={styles.loadingText}>Đang tải...</Text>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" backgroundColor="#fed700" />
+        {renderHeader()}
+        {renderLoading()}
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor="#fed700" />
+      
+      {renderHeader()}
 
       <ScrollView 
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#fed700']}
+            tintColor={'#fed700'}
+          />
         }
       >
-        {/* Banner Carousel */}
-        <View style={styles.section}>
-          <FlatList
-            data={banners}
-            renderItem={renderBanner}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            pagingEnabled
-            style={styles.bannerCarousel}
-          />
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <Text style={styles.quickActionIcon}>⚡</Text>
-              <Text style={styles.quickActionText}>Flash Sale</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <Text style={styles.quickActionIcon}>🎁</Text>
-              <Text style={styles.quickActionText}>Voucher</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <Text style={styles.quickActionIcon}>🆕</Text>
-              <Text style={styles.quickActionText}>Hàng mới</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <Text style={styles.quickActionIcon}>🔥</Text>
-              <Text style={styles.quickActionText}>Bán chạy</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Categories */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Danh mục</Text>
-          <FlatList
-            data={categories}
-            renderItem={renderCategory}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
-          />
-        </View>
-
-        {/* Featured Products */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Xem tất cả</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={featuredProducts}
-            renderItem={renderProduct}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productsList}
-          />
-        </View>
-
-        {/* Recommended Products */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Xem tất cả</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.gridContainer}>
-            {featuredProducts.map((item, index) => (
-              <View key={index} style={styles.gridItem}>
-                {renderProduct({ item })}
-              </View>
-            ))}
-          </View>
-        </View>
+        {renderBanner()}
+        {renderQuickActions()}
+        {renderCategories()}
+        {renderSaleProducts()}
+        {renderProductGrid('Sản phẩm nam', maleProducts, '👨')}
+        {renderProductGrid('Sản phẩm nữ', femaleProducts, '👩')}
+        {renderProductGrid('Sản phẩm bán chạy', products, '⭐')}
       </ScrollView>
+      
+      {renderUserModal()}
     </SafeAreaView>
   );
 }
@@ -397,105 +521,100 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    elevation: 2,
+    backgroundColor: '#fed700',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 5,
   },
-  headerTop: {
+  headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    justifyContent: 'space-between',
   },
-  userInfo: {
-    flex: 1,
+  logoContainer: {
+    marginRight: 12,
   },
-  greeting: {
-    fontSize: 14,
-    color: '#666',
-  },
-  userName: {
+  logo: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
-  headerActions: {
-    flexDirection: 'row',
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  headerButtonText: {
-    fontSize: 18,
-  },
   searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 25,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  searchInput: {
-    flex: 1,
-    height: 45,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    fontSize: 16,
+  headerIcon: {
+    position: 'relative',
+    marginLeft: 12,
+    padding: 4,
   },
-  searchButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    backgroundColor: '#007bff',
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#ff4757',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
   },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 18,
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
   },
-  section: {
-    marginVertical: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 15,
+    paddingVertical: 50,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
-  seeAllText: {
-    fontSize: 14,
-    color: '#007bff',
+  bannerContainer: {
+    position: 'relative',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  bannerCarousel: {
-    paddingLeft: 20,
-  },
-  bannerItem: {
-    width: width - 40,
+  bannerSlide: {
+    width: width,
     height: 200,
-    marginRight: 15,
-    borderRadius: 15,
-    overflow: 'hidden',
+    position: 'relative',
   },
   bannerImage: {
     width: '100%',
@@ -503,112 +622,199 @@ const styles = StyleSheet.create({
   },
   bannerOverlay: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   bannerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   bannerSubtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    fontSize: 14,
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  bannerButton: {
+    backgroundColor: '#ffca00',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  bannerButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  bannerIndicator: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 3,
+  },
+  activeIndicator: {
+    backgroundColor: 'white',
+  },
+  quickActionsContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   quickActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-  },
-  quickActionItem: {
-    alignItems: 'center',
-  },
-  quickActionIcon: {
-    fontSize: 30,
-    marginBottom: 5,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  categoriesList: {
-    paddingHorizontal: 20,
-  },
-  categoryItem: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  categoryIcon: {
-    fontSize: 24,
-    marginBottom: 5,
-  },
-  categoryName: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  productsList: {
-    paddingHorizontal: 20,
-  },
-  productCard: {
-    width: 180,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginRight: 15,
-    elevation: 3,
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
-  productImageContainer: {
+  quickAction: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  quickActionIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionEmoji: {
+    fontSize: 28,
+  },
+  quickActionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  seeAll: {
+    fontSize: 14,
+    color: '#242424',
+    fontWeight: '600',
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+  },
+  categoryCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    alignItems: 'center',
+    width: (width - 48) / 3,
+    height: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  categoryBackgroundImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  categoryOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  productsList: {
+    paddingLeft: 16,
+  },
+  saleProductCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: 180,
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     position: 'relative',
   },
   productImage: {
     width: '100%',
     height: 140,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
-  discountBadge: {
+  saleTag: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 8,
+    left: 8,
     backgroundColor: '#ff4757',
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 15,
   },
-  discountText: {
-    color: '#fff',
+  saleText: {
+    color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
   },
   favoriteButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 8,
+    right: 8,
+    backgroundColor: 'white',
+    borderRadius: 15,
     width: 30,
     height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  favoriteIcon: {
-    fontSize: 16,
-    color: '#ff4757',
   },
   productInfo: {
     padding: 12,
@@ -617,83 +823,125 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 5,
-  },
-  ratingContainer: {
-    marginBottom: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#666',
+    marginBottom: 6,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
   },
-  productPrice: {
+  salePrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007bff',
+    color: '#ff0000',
+    marginRight: 8,
   },
   originalPrice: {
     fontSize: 12,
     color: '#999',
     textDecorationLine: 'line-through',
-    marginLeft: 5,
   },
-  addToCartButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 8,
-    borderRadius: 8,
+  ratingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  addToCartText: {
-    color: '#fff',
+  rating: {
     fontSize: 12,
-    fontWeight: 'bold',
+    color: '#333',
   },
-  gridContainer: {
+  soldCount: {
+    fontSize: 10,
+    color: '#666',
+  },
+  productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     justifyContent: 'space-between',
   },
-  gridItem: {
-    width: (width - 60) / 2,
-    marginBottom: 15,
+  gridProductCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: (width - 40) / 2,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
   },
-  // Modal styles
+  gridProductImage: {
+    width: '100%',
+    height: 120,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  gridFavoriteButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridProductInfo: {
+    padding: 12,
+  },
+  gridProductName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  gridProductPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ff0000',
+    marginBottom: 4,
+  },
+  gridRatingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gridRating: {
+    fontSize: 12,
+    color: '#333',
+  },
+  gridSoldCount: {
+    fontSize: 10,
+    color: '#666',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 60,
-    paddingRight: 20,
+    paddingTop: 100,
+    paddingRight: 16,
   },
-  userMenuContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 8,
-    minWidth: 180,
-    elevation: 5,
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    minWidth: 200,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    elevation: 5,
   },
-  menuItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  modalOption: {
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  menuItemText: {
+  modalOptionText: {
     fontSize: 16,
     color: '#333',
-  },
-  logoutText: {
-    color: '#dc3545',
   },
 }); 
