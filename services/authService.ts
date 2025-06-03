@@ -36,9 +36,43 @@ export interface AuthResponse {
   fullname: string;
   username: string;
   email?: string;
+  phone?: string;
+}
+
+export interface UpdateProfileData {
+  fullname: string;
+  email: string;
+  phone: string;
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
 }
 
 const authService = {
+  // Verify user data từ server
+  verifyUserById: async (userId: string): Promise<any> => {
+    try {
+      console.log('🔍 Verifying user by ID:', userId);
+      
+      const response = await fetch(`http://192.168.1.45:8000/api/User/${userId}`);
+      console.log('📡 Verify response status:', response.status);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('👤 User data from server:', userData);
+        return userData;
+      } else {
+        console.log('❌ Failed to get user data');
+        return null;
+      }
+    } catch (error: any) {
+      console.error('❌ Verify user failed:', error);
+      return null;
+    }
+  },
+
   signUp: async (data: SignUpData): Promise<AuthResponse> => {
     try {
       console.log('Gửi yêu cầu đăng ký với dữ liệu:', data);
@@ -158,6 +192,165 @@ const authService = {
     } catch (error) {
       console.error('Lỗi khi kiểm tra xác thực:', error);
       return false;
+    }
+  },
+
+  updateProfile: async (data: UpdateProfileData): Promise<AuthResponse> => {
+    try {
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('Chưa đăng nhập');
+      }
+
+      const updateData = {
+        _id: currentUser._id,
+        fullname: data.fullname,
+        username: currentUser.username, // Giữ nguyên username
+        email: data.email,
+        phone: data.phone,
+        gender: '', // Có thể bỏ trống hoặc giữ giá trị cũ
+        // Sử dụng permission hiện tại thay vì ID cứng
+        // id_permission: "6087dcb5f269113b3460fce4",
+      };
+
+      console.log('🔄 Updating profile with data:', updateData);
+      console.log('🌐 API URL:', 'http://192.168.1.45:8000/api/User');
+      console.log('📝 Current user email/phone:', { email: currentUser.email, phone: currentUser.phone });
+      console.log('📝 New email/phone:', { email: data.email, phone: data.phone });
+
+      const response = await fetch('http://192.168.1.45:8000/api/User', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers));
+      
+      // Check if response is not ok
+      if (!response.ok) {
+        console.log('❌ Response not ok, status:', response.status);
+        const errorText = await response.text();
+        console.log('❌ Error response text:', `"${errorText}"`);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.text();
+      console.log('📨 Raw server response:', `"${result}"`);
+      console.log('📨 Response length:', result.length);
+      console.log('📨 Response char codes:', result.split('').map(c => c.charCodeAt(0)));
+
+      // Trim whitespace từ response
+      const trimmedResult = result.trim();
+      console.log('🧹 Trimmed response:', `"${trimmedResult}"`);
+      console.log('🧹 Trimmed length:', trimmedResult.length);
+
+      // Check each condition với explicit logging
+      console.log('🔍 Checking conditions:');
+      console.log('🔍 trimmedResult === "Thanh Cong":', trimmedResult === "Thanh Cong");
+      console.log('🔍 response.status === 200:', response.status === 200);
+      console.log('🔍 trimmedResult === "Email Da Ton Tai":', trimmedResult === "Email Da Ton Tai");
+      console.log('🔍 trimmedResult === "Phone Da Ton Tai":', trimmedResult === "Phone Da Ton Tai");
+
+      // Check for error cases FIRST
+      if (trimmedResult === "Email Da Ton Tai") {
+        console.log('❌ Email duplicate detected - throwing error');
+        throw new Error('Email đã được sử dụng');
+      } else if (trimmedResult === "Phone Da Ton Tai") {
+        console.log('❌ Phone duplicate detected - throwing error');
+        throw new Error('Số điện thoại đã được sử dụng');
+      } else if (trimmedResult === "Khong Co Thay Doi") {
+        console.log('⚠️ No changes detected - throwing error');
+        throw new Error('Không có thay đổi nào để cập nhật');
+      } else if (trimmedResult === "Thanh Cong") {
+        console.log('✅ Update successful condition met');
+        // Update local storage with new user info
+        const updatedUser = {
+          ...currentUser,
+          ...data
+        };
+        console.log('💾 Saving updated user to AsyncStorage:', updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        return updatedUser;
+      } else {
+        console.log('❌ Unexpected response - throwing error');
+        throw new Error(`Cập nhật thất bại: ${trimmedResult}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Error updating profile:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error stack:', error.stack);
+      
+      // Re-throw the error as-is để preserve error message
+      if (error.message === 'Email đã được sử dụng' || 
+          error.message === 'Số điện thoại đã được sử dụng') {
+        console.log('🔄 Re-throwing validation error');
+        throw error;
+      }
+      
+      console.log('🔄 Throwing generic error');
+      throw new Error(error.message || 'Cập nhật profile thất bại');
+    }
+  },
+
+  changePassword: async (data: ChangePasswordData): Promise<void> => {
+    try {
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('Chưa đăng nhập');
+      }
+
+      // Đầu tiên, kiểm tra mật khẩu hiện tại bằng cách thử đăng nhập lại
+      try {
+        await authService.signIn({
+          username: currentUser.username,
+          password: data.currentPassword
+        });
+      } catch (error) {
+        throw new Error('Mật khẩu hiện tại không đúng');
+      }
+
+      // Nếu mật khẩu hiện tại đúng, cập nhật mật khẩu mới
+      const updateData = {
+        _id: currentUser._id,
+        fullname: currentUser.fullname,
+        username: currentUser.username,
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        password: data.newPassword, // Mật khẩu mới
+        gender: '', 
+        // Không set id_permission để backend giữ nguyên giá trị hiện tại
+      };
+
+      console.log('Changing password for user:', currentUser._id);
+
+      const response = await fetch('http://192.168.1.45:8000/api/User', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      const result = await response.text();
+      console.log('Change password response:', result);
+
+      if (result === "Thanh Cong" || response.status === 200) {
+        console.log('Password changed successfully');
+        return;
+      } else if (result === "Email Da Ton Tai") {
+        throw new Error('Email đã được sử dụng');
+      } else if (result === "Phone Da Ton Tai") {
+        throw new Error('Số điện thoại đã được sử dụng');
+      } else {
+        throw new Error('Đổi mật khẩu thất bại');
+      }
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      throw new Error(error.message || 'Đổi mật khẩu thất bại');
     }
   },
 };

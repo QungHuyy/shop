@@ -6,6 +6,7 @@ interface User {
   username: string;
   fullname: string;
   email?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -21,6 +22,8 @@ interface AuthContextType {
     password: string;
   }) => Promise<void>;
   signOut: () => void;
+  updateUser: (userData: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,6 +87,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      return { ...prevUser, ...userData } as User;
+    });
+  };
+
+  const refreshUser = async () => {
+    try {
+      const currentUser = await authService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+    } catch (error) {
+      console.log('Không có người dùng đã đăng nhập');
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -91,6 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    updateUser,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
