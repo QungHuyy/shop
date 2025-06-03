@@ -13,6 +13,10 @@ export interface Product {
     L: number;
   };
   number: number;
+  // Optional promotion fields
+  promotion?: number;
+  saleId?: string;
+  salePrice?: number;
 }
 
 export interface Category {
@@ -26,7 +30,197 @@ export interface SaleProduct extends Product {
   salePrice: number;
 }
 
+// API Base URL - Giống như web client
+const API_BASE_URL = 'http://192.168.1.45:8000'; // Thay IP này bằng IP máy tính của bạn
+
 const productService = {
+  // Lấy danh sách sản phẩm đang sale từ server (như client_app-main)
+  getSaleProductsFromServer: async (): Promise<Product[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/sale/list/product`);
+      const saleList = await response.json();
+      
+      // Tạo mảng chứa thông tin đầy đủ của sản phẩm sale
+      const productsWithDetails = [];
+      
+      // Lặp qua từng sản phẩm sale để lấy thông tin chi tiết
+      for (const sale of saleList) {
+        if (sale && sale.id_product && sale.id_product._id) {
+          // Thêm thông tin sale vào sản phẩm
+          productsWithDetails.push({
+            ...sale.id_product,
+            promotion: sale.promotion,
+            saleId: sale._id,
+            salePrice: parseInt(sale.id_product.price_product) - 
+                      (parseInt(sale.id_product.price_product) * parseInt(sale.promotion) / 100)
+          });
+        }
+      }
+      
+      console.log('✅ Loaded sale products from server:', productsWithDetails.length);
+      return productsWithDetails;
+    } catch (error) {
+      console.log('❌ Server error, using mock sale data');
+      return productService.getSaleProducts();
+    }
+  },
+
+  // Lấy tất cả sản phẩm từ server với thông tin promotion (cách hiệu quả hơn)
+  getAllProducts: async (): Promise<Product[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/Product`);
+      const products = await response.json();
+      
+      // Lấy danh sách sản phẩm sale
+      const saleProducts = await productService.getSaleProductsFromServer();
+      const saleProductIds = new Set(saleProducts.map(p => p._id));
+      
+      // Merge thông tin promotion vào sản phẩm thường
+      const productsWithPromotion = products.map((product: Product) => {
+        const saleProduct = saleProducts.find(sp => sp._id === product._id);
+        if (saleProduct) {
+          return {
+            ...product,
+            promotion: saleProduct.promotion,
+            saleId: saleProduct.saleId,
+            salePrice: saleProduct.salePrice
+          };
+        }
+        return product;
+      });
+      
+      console.log('✅ Loaded products from server:', productsWithPromotion.length);
+      return productsWithPromotion;
+    } catch (error) {
+      console.log('❌ Server error, using mock data');
+      return productService.getMockProducts();
+    }
+  },
+
+  // Lấy sản phẩm theo giới tính từ server với thông tin promotion
+  getProductsByGender: async (gender: string, limit?: number): Promise<Product[]> => {
+    try {
+      let url = `${API_BASE_URL}/api/Product/category?id_category=all`;
+      if (gender !== 'all') {
+        url += `&gender=${gender}`;
+      }
+      
+      const response = await fetch(url);
+      let products = await response.json();
+      
+      // Lấy danh sách sản phẩm sale
+      const saleProducts = await productService.getSaleProductsFromServer();
+      
+      // Merge thông tin promotion vào sản phẩm
+      const productsWithPromotion = products.map((product: Product) => {
+        const saleProduct = saleProducts.find(sp => sp._id === product._id);
+        if (saleProduct) {
+          return {
+            ...product,
+            promotion: saleProduct.promotion,
+            saleId: saleProduct.saleId,
+            salePrice: saleProduct.salePrice
+          };
+        }
+        return product;
+      });
+      
+      if (limit) {
+        products = productsWithPromotion.slice(0, limit);
+      } else {
+        products = productsWithPromotion;
+      }
+      
+      console.log(`✅ Loaded ${gender} products:`, products.length);
+      return products;
+    } catch (error) {
+      console.log('❌ Server error, using mock data');
+      return productService.getMockProductsByGender(gender, limit);
+    }
+  },
+
+  // Lấy sản phẩm với phân trang từ server với thông tin promotion
+  getProductsPagination: async (page: number = 1, count: number = 10, search?: string, category?: string, gender?: string): Promise<Product[]> => {
+    try {
+      // Sử dụng endpoint đơn giản hơn trước, rồi pagination sau
+      let url = `${API_BASE_URL}/api/Product/category?id_category=all`;
+      
+      if (gender && gender !== 'all') {
+        url += `&gender=${gender}`;
+      }
+      
+      console.log('🔄 Calling pagination API:', url);
+      const response = await fetch(url);
+      const allProducts = await response.json();
+      
+      console.log('📦 Raw response:', allProducts.length, 'products');
+      
+      // Lấy danh sách sản phẩm sale
+      const saleProducts = await productService.getSaleProductsFromServer();
+      
+      // Merge thông tin promotion vào sản phẩm
+      const productsWithPromotion = allProducts.map((product: Product) => {
+        const saleProduct = saleProducts.find(sp => sp._id === product._id);
+        if (saleProduct) {
+          return {
+            ...product,
+            promotion: saleProduct.promotion,
+            saleId: saleProduct.saleId,
+            salePrice: saleProduct.salePrice
+          };
+        }
+        return product;
+      });
+      
+      // Apply pagination manually
+      const start = (page - 1) * count;
+      const end = start + count;
+      const products = productsWithPromotion.slice(start, end);
+      
+      console.log(`✅ Loaded paginated products: ${products.length} (page ${page}, ${start}-${end})`);
+      console.log('📄 Products to display:', products.map((p: Product) => p.name_product));
+      console.log('🔥 Products with promotion:', products.filter((p: Product) => p.promotion).map((p: Product) => ({ name: p.name_product, promotion: p.promotion })));
+      return products;
+    } catch (error) {
+      console.log('❌ Server error, using mock data');
+      return productService.getMockProducts();
+    }
+  },
+
+  // Kiểm tra khuyến mãi cho một sản phẩm cụ thể (giữ lại để tương thích)
+  checkProductSale: async (productId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/sale/list/${productId}`);
+      const result = await response.json();
+      
+      if (result.msg === "Thanh Cong" && result.sale) {
+        const sale = result.sale;
+        
+        // Kiểm tra xem khuyến mãi có đang active và trong thời gian hiệu lực không
+        const currentDate = new Date();
+        const startDate = new Date(sale.start);
+        const endDate = new Date(sale.end);
+        
+        if (sale.status && currentDate >= startDate && currentDate <= endDate) {
+          // Tính giá sau khuyến mãi
+          const originalPrice = parseInt(sale.id_product.price_product);
+          const salePrice = originalPrice - (originalPrice * sale.promotion / 100);
+          
+          return {
+            promotion: sale.promotion,
+            saleId: sale._id,
+            salePrice: salePrice
+          };
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.log('❌ Error checking sale for product:', productId);
+      return null;
+    }
+  },
+
   // Mock data - Sản phẩm sale
   getSaleProducts: async (): Promise<SaleProduct[]> => {
     return new Promise((resolve) => {
@@ -93,116 +287,6 @@ const productService = {
     });
   },
 
-  // Mock data - Sản phẩm nam
-  getProductsByGender: async (gender: string, limit?: number): Promise<Product[]> => {
-    const allProducts: Product[] = [
-      // Sản phẩm Nam
-      {
-        _id: '5',
-        id_category: 'cat1',
-        name_product: 'Áo Sơ Mi Nam Công Sở',
-        price_product: '450000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/ao-so-mi-nam-tay-dai-trang-1.jpg?v=1639642767257',
-        describe: 'Áo sơ mi công sở lịch lãm',
-        gender: 'Male',
-        inventory: { S: 15, M: 20, L: 12 },
-        number: 60
-      },
-      {
-        _id: '6',
-        id_category: 'cat1',
-        name_product: 'Quần Kaki Nam',
-        price_product: '399000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/quan-kaki-nam-form-rong-mau-be-2.jpg?v=1639642870257',
-        describe: 'Quần kaki nam form đẹp',
-        gender: 'Male',
-        inventory: { S: 10, M: 18, L: 14 },
-        number: 35
-      },
-      {
-        _id: '7',
-        id_category: 'cat1',
-        name_product: 'Áo Polo Nam',
-        price_product: '329000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/ao-polo-nam-tay-ngan-mau-xanh-navy-1.jpg?v=1639642767257',
-        describe: 'Áo polo nam thể thao',
-        gender: 'Male',
-        inventory: { S: 12, M: 16, L: 8 },
-        number: 45
-      },
-      {
-        _id: '8',
-        id_category: 'cat1',
-        name_product: 'Jacket Nam Bomber',
-        price_product: '799000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/ao-jacket-bomber-nam-mau-xanh-den-1.jpg?v=1639642767257',
-        describe: 'Áo jacket bomber phong cách',
-        gender: 'Male',
-        inventory: { S: 6, M: 10, L: 8 },
-        number: 28
-      },
-
-      // Sản phẩm Nữ
-      {
-        _id: '9',
-        id_category: 'cat2',
-        name_product: 'Đầm Dự Tiệc Nữ',
-        price_product: '699000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/dam-du-tiec-nu-mau-do-1.jpg?v=1639642767257',
-        describe: 'Đầm dự tiệc sang trọng',
-        gender: 'Female',
-        inventory: { S: 8, M: 12, L: 6 },
-        number: 22
-      },
-      {
-        _id: '10',
-        id_category: 'cat2',
-        name_product: 'Áo Kiểu Nữ Công Sở',
-        price_product: '399000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/ao-kieu-nu-cong-so-mau-trang-1.jpg?v=1639642767257',
-        describe: 'Áo kiểu nữ thanh lịch',
-        gender: 'Female',
-        inventory: { S: 15, M: 18, L: 10 },
-        number: 38
-      },
-      {
-        _id: '11',
-        id_category: 'cat2',
-        name_product: 'Chân Váy Nữ A-Line',
-        price_product: '299000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/chan-vay-nu-a-line-mau-den-1.jpg?v=1639642767257',
-        describe: 'Chân váy A-line trẻ trung',
-        gender: 'Female',
-        inventory: { S: 12, M: 15, L: 8 },
-        number: 42
-      },
-      {
-        _id: '12',
-        id_category: 'cat2',
-        name_product: 'Blazer Nữ Công Sở',
-        price_product: '899000',
-        image: 'https://bizweb.dktcdn.net/100/415/697/products/blazer-nu-cong-so-mau-xam-1.jpg?v=1639642767257',
-        describe: 'Blazer nữ chuyên nghiệp',
-        gender: 'Female',
-        inventory: { S: 6, M: 10, L: 8 },
-        number: 18
-      }
-    ];
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        let filtered = allProducts;
-        if (gender !== 'all') {
-          filtered = allProducts.filter(p => p.gender === gender);
-        }
-        if (limit) {
-          filtered = filtered.slice(0, limit);
-        }
-        resolve(filtered);
-      }, 300);
-    });
-  },
-
   // Mock data - Sản phẩm bán chạy
   getBestSellingProducts: async (limit: number = 8): Promise<Product[]> => {
     const products = await productService.getProductsByGender('all');
@@ -234,6 +318,60 @@ const productService = {
   optimizeImageUrl: (url: string, width: number = 300): string => {
     // Giữ nguyên URL cho demo
     return url;
+  },
+
+  // Mock data functions
+  getMockProducts: (): Product[] => {
+    return [
+      {
+        _id: '5',
+        id_category: 'cat1',
+        name_product: 'Áo Sơ Mi Nam Công Sở',
+        price_product: '450000',
+        image: 'https://bizweb.dktcdn.net/100/415/697/products/ao-so-mi-nam-tay-dai-trang-1.jpg?v=1639642767257',
+        describe: 'Áo sơ mi công sở lịch lãm',
+        gender: 'Male',
+        inventory: { S: 15, M: 20, L: 12 },
+        number: 60
+      },
+      {
+        _id: '6',
+        id_category: 'cat1',
+        name_product: 'Quần Kaki Nam',
+        price_product: '399000',
+        image: 'https://bizweb.dktcdn.net/100/415/697/products/quan-kaki-nam-form-rong-mau-be-2.jpg?v=1639642870257',
+        describe: 'Quần kaki nam form đẹp',
+        gender: 'Male',
+        inventory: { S: 10, M: 18, L: 14 },
+        number: 35
+      },
+      {
+        _id: '9',
+        id_category: 'cat2',
+        name_product: 'Đầm Dự Tiệc Nữ',
+        price_product: '699000',
+        image: 'https://bizweb.dktcdn.net/100/415/697/products/dam-du-tiec-nu-mau-do-1.jpg?v=1639642767257',
+        describe: 'Đầm dự tiệc sang trọng',
+        gender: 'Female',
+        inventory: { S: 8, M: 12, L: 6 },
+        number: 22
+      }
+    ];
+  },
+
+  getMockProductsByGender: (gender: string, limit?: number): Product[] => {
+    const allProducts = productService.getMockProducts();
+    let filtered = allProducts;
+    
+    if (gender !== 'all') {
+      filtered = allProducts.filter(p => p.gender === gender);
+    }
+    
+    if (limit) {
+      filtered = filtered.slice(0, limit);
+    }
+    
+    return filtered;
   }
 };
 
