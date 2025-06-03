@@ -40,7 +40,11 @@ export default function SignIn() {
       await signIn(values.username, values.password);
       showSuccess('Đăng nhập thành công! Chào mừng bạn đến với ứng dụng.');
       
-      // Navigation sẽ được xử lý tự động bởi _layout.tsx dựa trên isAuthenticated
+      // Redirect về trang chủ sau khi đăng nhập thành công
+      setTimeout(() => {
+        router.replace('/');
+      }, 1000);
+      
     } catch (err: any) {
       console.error('Lỗi đăng nhập:', err);
       const message = err.message || 'Đăng nhập thất bại. Vui lòng thử lại.';

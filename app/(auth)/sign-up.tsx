@@ -62,9 +62,9 @@ export default function SignUp() {
       const response = await authService.signUp(signUpData);
       
       if (response) {
-        showSuccess('Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.');
+        showSuccess('Đăng ký thành công! Bạn đã được đăng nhập tự động.');
         setTimeout(() => {
-          router.replace('/(auth)/sign-in');
+          router.replace('/');
         }, 1500);
       }
     } catch (err: any) {

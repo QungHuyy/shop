@@ -36,6 +36,18 @@ export interface AuthResponse {
   fullname: string;
   username: string;
   email?: string;
+  phone?: string;
+}
+
+export interface UpdateProfileData {
+  fullname: string;
+  email: string;
+  phone: string;
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
 }
 
 const authService = {
@@ -158,6 +170,104 @@ const authService = {
     } catch (error) {
       console.error('Lỗi khi kiểm tra xác thực:', error);
       return false;
+    }
+  },
+
+  updateProfile: async (data: UpdateProfileData): Promise<AuthResponse> => {
+    try {
+      console.log('Cập nhật profile với dữ liệu:', data);
+      
+      // Lấy thông tin user hiện tại để có _id
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('Người dùng chưa đăng nhập');
+      }
+      
+      const updateData = {
+        _id: currentUser._id,
+        username: currentUser.username,
+        fullname: data.fullname,
+        email: data.email,
+        phone: data.phone,
+        gender: '', // Giữ gender cũ hoặc mặc định
+        id_permission: "6087dcb5f269113b3460fce4" // Giữ permission cũ
+      };
+      
+      console.log('Dữ liệu gửi lên server để cập nhật:', updateData);
+      const response = await axios.put(API_URL, updateData);
+      console.log('Phản hồi từ server khi cập nhật:', response.data);
+
+      if (response.data === "Email Da Ton Tai") {
+        throw new Error('Email đã được sử dụng bởi tài khoản khác');
+      }
+      if (response.data === "Phone Da Ton Tai") {
+        throw new Error('Số điện thoại đã được sử dụng bởi tài khoản khác');
+      }
+      if (response.data === "Khong Tim Thay User") {
+        throw new Error('Không tìm thấy thông tin người dùng');
+      }
+      if (response.data === "Thanh Cong") {
+        // Lấy lại thông tin user sau khi cập nhật
+        const updatedUser = { 
+          ...currentUser, 
+          fullname: data.fullname,
+          email: data.email,
+          phone: data.phone
+        };
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        return updatedUser;
+      }
+      throw new Error('Cập nhật thông tin thất bại');
+    } catch (error: any) {
+      console.error('Lỗi khi cập nhật profile:', error);
+      console.error('Chi tiết lỗi:', error.response?.data);
+      throw new Error(error.message || 'Cập nhật thông tin thất bại');
+    }
+  },
+
+  changePassword: async (data: ChangePasswordData): Promise<void> => {
+    try {
+      console.log('Đổi mật khẩu');
+      
+      // Lấy thông tin user hiện tại
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('Người dùng chưa đăng nhập');
+      }
+      
+      // Kiểm tra mật khẩu hiện tại trước
+      try {
+        await authService.signIn({
+          username: currentUser.username,
+          password: data.currentPassword
+        });
+      } catch (error) {
+        throw new Error('Mật khẩu hiện tại không đúng');
+      }
+      
+      // Cập nhật mật khẩu mới
+      const updateData = {
+        _id: currentUser._id,
+        username: currentUser.username,
+        fullname: currentUser.fullname,
+        email: currentUser.email,
+        phone: currentUser.phone,
+        password: data.newPassword,
+        gender: '', 
+        id_permission: "6087dcb5f269113b3460fce4"
+      };
+      
+      console.log('Cập nhật mật khẩu mới');
+      const response = await axios.put(API_URL, updateData);
+      console.log('Phản hồi từ server khi đổi mật khẩu:', response.data);
+
+      if (response.data !== "Thanh Cong") {
+        throw new Error('Đổi mật khẩu thất bại');
+      }
+    } catch (error: any) {
+      console.error('Lỗi khi đổi mật khẩu:', error);
+      console.error('Chi tiết lỗi:', error.response?.data);
+      throw new Error(error.message || 'Đổi mật khẩu thất bại');
     }
   },
 };
