@@ -12,6 +12,7 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +21,19 @@ import { useRouter } from 'expo-router';
 import productService, { Product } from '@/services/productService';
 
 const { width } = Dimensions.get('window');
+
+// Filter interfaces
+interface PriceRange {
+  min: number;
+  max: number;
+  label: string;
+}
+
+interface FilterOptions {
+  priceRange: PriceRange | null;
+  hasPromotion: boolean | null; // true = có km, false = không km, null = tất cả
+  sortBy: 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'promotion_desc' | 'default';
+}
 
 export default function ProductsScreen() {
   const router = useRouter();
@@ -30,6 +44,32 @@ export default function ProductsScreen() {
   const [searchText, setSearchText] = useState('');
   const [selectedGender, setSelectedGender] = useState('all');
   const [apiError, setApiError] = useState<string | null>(null);
+  
+  // Filter states
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    priceRange: null,
+    hasPromotion: null,
+    sortBy: 'default'
+  });
+
+  // Price ranges
+  const priceRanges: PriceRange[] = [
+    { min: 0, max: 500000, label: 'Dưới 500K' },
+    { min: 500000, max: 1000000, label: '500K - 1M' },
+    { min: 1000000, max: 2000000, label: '1M - 2M' },
+    { min: 2000000, max: 99999999, label: 'Trên 2M' },
+  ];
+
+  // Sort options
+  const sortOptions = [
+    { key: 'default', label: 'Mặc định' },
+    { key: 'price_asc', label: 'Giá thấp → cao' },
+    { key: 'price_desc', label: 'Giá cao → thấp' },
+    { key: 'name_asc', label: 'Tên A → Z' },
+    { key: 'name_desc', label: 'Tên Z → A' },
+    { key: 'promotion_desc', label: 'Khuyến mãi cao nhất' },
+  ];
 
   useEffect(() => {
     loadAllProducts();
@@ -37,7 +77,7 @@ export default function ProductsScreen() {
 
   useEffect(() => {
     filterProducts();
-  }, [products, searchText, selectedGender]);
+  }, [products, searchText, selectedGender, filters]);
 
   const loadAllProducts = async () => {
     try {
@@ -87,7 +127,62 @@ export default function ProductsScreen() {
       );
     }
 
+    // Filter by price range
+    if (filters.priceRange) {
+      filtered = filtered.filter(product => {
+        const price = parseInt(product.price_product);
+        return price >= filters.priceRange!.min && price <= filters.priceRange!.max;
+      });
+    }
+
+    // Filter by promotion
+    if (filters.hasPromotion !== null) {
+      if (filters.hasPromotion) {
+        filtered = filtered.filter(product => product.promotion && product.promotion > 0);
+      } else {
+        filtered = filtered.filter(product => !product.promotion || product.promotion === 0);
+      }
+    }
+
+    // Sort products
+    filtered = sortProducts(filtered, filters.sortBy);
+
     setFilteredProducts(filtered);
+  };
+
+  const sortProducts = (products: Product[], sortBy: string): Product[] => {
+    const sorted = [...products];
+    
+    switch (sortBy) {
+      case 'price_asc':
+        return sorted.sort((a, b) => {
+          const priceA = a.salePrice || parseInt(a.price_product);
+          const priceB = b.salePrice || parseInt(b.price_product);
+          return priceA - priceB;
+        });
+      case 'price_desc':
+        return sorted.sort((a, b) => {
+          const priceA = a.salePrice || parseInt(a.price_product);
+          const priceB = b.salePrice || parseInt(b.price_product);
+          return priceB - priceA;
+        });
+      case 'name_asc':
+        return sorted.sort((a, b) => a.name_product.localeCompare(b.name_product));
+      case 'name_desc':
+        return sorted.sort((a, b) => b.name_product.localeCompare(a.name_product));
+      case 'promotion_desc':
+        return sorted.sort((a, b) => (b.promotion || 0) - (a.promotion || 0));
+      default:
+        return sorted;
+    }
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      priceRange: null,
+      hasPromotion: null,
+      sortBy: 'default'
+    });
   };
 
   const onRefresh = async () => {
@@ -101,6 +196,152 @@ export default function ProductsScreen() {
     // TODO: Navigate to product detail page
     // router.push(`/products/${product._id}`);
   };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (filters.priceRange) count++;
+    if (filters.hasPromotion !== null) count++;
+    if (filters.sortBy !== 'default') count++;
+    return count;
+  };
+
+  const renderFilterModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showFilterModal}
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterModal}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterTitle}>Bộ lọc</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
+            {/* Price Range Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Khoảng giá</Text>
+              {priceRanges.map((range, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.filterOption,
+                    filters.priceRange?.label === range.label && styles.filterOptionActive
+                  ]}
+                  onPress={() => setFilters(prev => ({
+                    ...prev,
+                    priceRange: prev.priceRange?.label === range.label ? null : range
+                  }))}
+                >
+                  <Text style={[
+                    styles.filterOptionText,
+                    filters.priceRange?.label === range.label && styles.filterOptionTextActive
+                  ]}>
+                    {range.label}
+                  </Text>
+                  {filters.priceRange?.label === range.label && (
+                    <Ionicons name="checkmark" size={20} color="#fed700" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Promotion Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Khuyến mãi</Text>
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  filters.hasPromotion === true && styles.filterOptionActive
+                ]}
+                onPress={() => setFilters(prev => ({
+                  ...prev,
+                  hasPromotion: prev.hasPromotion === true ? null : true
+                }))}
+              >
+                <Text style={[
+                  styles.filterOptionText,
+                  filters.hasPromotion === true && styles.filterOptionTextActive
+                ]}>
+                  Có khuyến mãi
+                </Text>
+                {filters.hasPromotion === true && (
+                  <Ionicons name="checkmark" size={20} color="#fed700" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  filters.hasPromotion === false && styles.filterOptionActive
+                ]}
+                onPress={() => setFilters(prev => ({
+                  ...prev,
+                  hasPromotion: prev.hasPromotion === false ? null : false
+                }))}
+              >
+                <Text style={[
+                  styles.filterOptionText,
+                  filters.hasPromotion === false && styles.filterOptionTextActive
+                ]}>
+                  Không khuyến mãi
+                </Text>
+                {filters.hasPromotion === false && (
+                  <Ionicons name="checkmark" size={20} color="#fed700" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Sort Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Sắp xếp theo</Text>
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.filterOption,
+                    filters.sortBy === option.key && styles.filterOptionActive
+                  ]}
+                  onPress={() => setFilters(prev => ({
+                    ...prev,
+                    sortBy: option.key as any
+                  }))}
+                >
+                  <Text style={[
+                    styles.filterOptionText,
+                    filters.sortBy === option.key && styles.filterOptionTextActive
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {filters.sortBy === option.key && (
+                    <Ionicons name="checkmark" size={20} color="#fed700" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={styles.filterFooter}>
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={resetFilters}
+            >
+              <Text style={styles.resetButtonText}>Đặt lại</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => setShowFilterModal(false)}
+            >
+              <Text style={styles.applyButtonText}>Áp dụng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -134,50 +375,73 @@ export default function ProductsScreen() {
         )}
       </View>
 
-      {/* Gender Filter */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-      >
-        {[
-          { key: 'all', label: 'Tất cả' },
-          { key: 'Male', label: 'Nam' },
-          { key: 'Female', label: 'Nữ' },
-          { key: 'Unisex', label: 'Unisex' }
-        ].map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            style={[
-              styles.filterButton,
-              selectedGender === filter.key && styles.filterButtonActive
-            ]}
-            onPress={() => setSelectedGender(filter.key)}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              selectedGender === filter.key && styles.filterButtonTextActive
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Gender Filter + Filter Button */}
+      <View style={styles.filterRow}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.genderFilterContainer}
+        >
+          {[
+            { key: 'all', label: 'Tất cả' },
+            { key: 'Male', label: 'Nam' },
+            { key: 'Female', label: 'Nữ' },
+            { key: 'Unisex', label: 'Unisex' }
+          ].map((filter) => (
+            <TouchableOpacity
+              key={filter.key}
+              style={[
+                styles.filterChip,
+                selectedGender === filter.key && styles.filterChipActive
+              ]}
+              onPress={() => setSelectedGender(filter.key)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                selectedGender === filter.key && styles.filterChipTextActive
+              ]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        
+        <TouchableOpacity 
+          style={[
+            styles.filterButton,
+            getActiveFiltersCount() > 0 && styles.filterButtonActive
+          ]}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Ionicons name="options" size={20} color={getActiveFiltersCount() > 0 ? "#fed700" : "#333"} />
+          {getActiveFiltersCount() > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
-      {/* Product Count */}
-      <View style={styles.countContainer}>
+      {/* Product Count & Active Filters */}
+      <View style={styles.resultContainer}>
         <Text style={styles.countText}>
           {filteredProducts.length} sản phẩm
         </Text>
-        {apiError && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="warning" size={16} color="#ff4757" />
-            <Text style={styles.errorText} numberOfLines={2}>
-              {apiError}
-            </Text>
-          </View>
+        {getActiveFiltersCount() > 0 && (
+          <TouchableOpacity onPress={resetFilters} style={styles.clearFiltersButton}>
+            <Text style={styles.clearFiltersText}>Xóa lọc</Text>
+          </TouchableOpacity>
         )}
       </View>
+      
+      {apiError && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning" size={16} color="#ff4757" />
+          <Text style={styles.errorText} numberOfLines={2}>
+            {apiError}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -282,6 +546,8 @@ export default function ProductsScreen() {
         ListEmptyComponent={renderEmptyState}
         columnWrapperStyle={styles.row}
       />
+
+      {renderFilterModal()}
     </SafeAreaView>
   );
 }
@@ -322,6 +588,11 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -346,35 +617,80 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
-  filterContainer: {
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 15,
   },
-  filterButton: {
+  genderFilterContainer: {
+    marginRight: 10,
+  },
+  filterChip: {
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 10,
   },
-  filterButtonActive: {
+  filterChipActive: {
     backgroundColor: 'white',
   },
-  filterButtonText: {
+  filterChipText: {
     color: '#333',
     fontSize: 14,
     fontWeight: '500',
   },
-  filterButtonTextActive: {
+  filterChipTextActive: {
     color: '#fed700',
     fontWeight: 'bold',
   },
-  countContainer: {
+  filterButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    position: 'relative',
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: 'white',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#ff4757',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 18,
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  resultContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   countText: {
     color: '#333',
     fontSize: 14,
     fontWeight: '500',
+  },
+  clearFiltersButton: {
+    padding: 8,
+    backgroundColor: '#ff4757',
+    borderRadius: 15,
+  },
+  clearFiltersText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -513,5 +829,105 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     textDecorationLine: 'line-through',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  filterModal: {
+    backgroundColor: 'white',
+    width: '100%',
+    height: '80%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  filterTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  filterContent: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+  filterSection: {
+    marginBottom: 25,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  filterOptionActive: {
+    borderColor: '#fed700',
+    backgroundColor: '#fff9e6',
+  },
+  filterOptionText: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterOptionTextActive: {
+    color: '#fed700',
+    fontWeight: 'bold',
+  },
+  filterFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 15,
+  },
+  resetButton: {
+    flex: 1,
+    padding: 15,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  applyButton: {
+    flex: 1,
+    padding: 15,
+    backgroundColor: '#fed700',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
