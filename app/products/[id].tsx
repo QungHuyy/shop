@@ -18,12 +18,15 @@ import { Ionicons } from '@expo/vector-icons';
 import productService, { Product } from '../../services/productService';
 import commentService, { Comment, CreateCommentData, ReviewCheckResponse } from '../../services/commentService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import cartService from '../../services/cartService';
 
 const { width } = Dimensions.get('window');
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
   const { isAuthenticated, user } = useAuth();
+  const { addToCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | null>(null);
@@ -176,7 +179,7 @@ export default function ProductDetail() {
     return commentService.calculateAverageRating(comments);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!isAuthenticated) {
       Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng', [
         { text: 'Hủy', style: 'cancel' },
@@ -195,8 +198,59 @@ export default function ProductDetail() {
       return;
     }
 
-    // TODO: Implement cart service
-    Alert.alert('Thêm vào giỏ hàng', `Đã thêm ${quantity} ${product?.name_product} (Size ${selectedSize}) vào giỏ hàng`);
+    if (!product) {
+      Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ hàng');
+      return;
+    }
+
+    // Check inventory before adding
+    const availableQuantity = getSizeInventory(selectedSize);
+    
+    // Get existing cart items for this product + size
+    const cartItems = await cartService.getCartItems();
+    const existingItem = cartItems.find((item: any) => 
+      item.id_product === product._id && item.size === selectedSize
+    );
+    const existingQuantity = existingItem ? existingItem.count : 0;
+    const totalQuantity = existingQuantity + quantity;
+
+    if (totalQuantity > availableQuantity) {
+      Alert.alert(
+        'Vượt quá số lượng trong kho', 
+        `Chỉ còn ${availableQuantity} sản phẩm size ${selectedSize} trong kho.\nBạn đã có ${existingQuantity} trong giỏ hàng.\nChỉ có thể thêm tối đa ${availableQuantity - existingQuantity} sản phẩm nữa.`
+      );
+      return;
+    }
+
+    try {
+      const cartData = {
+        id_product: product._id,
+        name_product: product.name_product,
+        price_product: product.promotion && product.promotion > 0 
+          ? calculateSalePrice(product.price_product, product.promotion)
+          : parseInt(product.price_product),
+        count: quantity,
+        image: product.image,
+        size: selectedSize,
+        originalPrice: product.promotion && product.promotion > 0 
+          ? parseInt(product.price_product) 
+          : undefined
+      };
+
+      const success = await addToCart(cartData);
+      
+      if (success) {
+        Alert.alert('Thành công', `Đã thêm ${quantity} ${product.name_product} (Size ${selectedSize}) vào giỏ hàng`, [
+          { text: 'Tiếp tục mua', style: 'cancel' },
+          { text: 'Xem giỏ hàng', onPress: () => router.push('../../cart/') }
+        ]);
+      } else {
+        Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ hàng');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng');
+    }
   };
 
   const handleBuyNow = () => {
@@ -242,11 +296,11 @@ export default function ProductDetail() {
       <View style={styles.reviewHeader}>
         <View style={styles.reviewAvatar}>
           <Text style={styles.reviewAvatarText}>
-            {item.id_user.fullname.charAt(0).toUpperCase()}
+            {item.id_user?.fullname?.charAt(0)?.toUpperCase() || 'U'}
           </Text>
         </View>
         <View style={styles.reviewInfo}>
-          <Text style={styles.reviewUserName}>{item.id_user.fullname}</Text>
+          <Text style={styles.reviewUserName}>{item.id_user?.fullname || 'Người dùng ẩn danh'}</Text>
           <View style={styles.reviewRating}>
             {renderStars(item.star, 14)}
             <Text style={styles.reviewDate}>
@@ -500,21 +554,32 @@ export default function ProductDetail() {
             <View style={styles.quantityContainer}>
               <TouchableOpacity
                 style={styles.quantityButton}
-                onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                onPress={() => {
+                  const newQuantity = Math.max(1, quantity - 1);
+                  setQuantity(newQuantity);
+                }}
               >
                 <Ionicons name="remove" size={20} color="#333" />
               </TouchableOpacity>
+              
               <Text style={styles.quantityText}>{quantity}</Text>
+              
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => {
                   const maxQuantity = selectedSize ? getSizeInventory(selectedSize) : 1;
-                  setQuantity(Math.min(maxQuantity, quantity + 1));
+                  const newQuantity = Math.min(maxQuantity, quantity + 1);
+                  setQuantity(newQuantity);
                 }}
               >
                 <Ionicons name="add" size={20} color="#333" />
               </TouchableOpacity>
             </View>
+            {selectedSize && (
+              <Text style={styles.quantityHint}>
+                Còn lại: {getSizeInventory(selectedSize)} sản phẩm
+              </Text>
+            )}
           </View>
 
           {/* Description */}
@@ -783,6 +848,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     minWidth: 40,
     textAlign: 'center',
+  },
+  quantityHint: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 24,
   },
   descriptionSection: {
     marginBottom: 24,
