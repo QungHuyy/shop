@@ -1,24 +1,44 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { AuthProvider } from '../contexts/AuthContext';
-import { NotificationProvider } from '../contexts/NotificationContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { View, ActivityIndicator } from 'react-native';
+
+function RootLayoutNav() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {!isAuthenticated ? (
+        // Auth screens
+        <>
+          <Stack.Screen name="(auth)/sign-in" />
+          <Stack.Screen name="(auth)/sign-up" />
+        </>
+      ) : (
+        // App screens
+        <>
+          <Stack.Screen name="(app)/home" />
+        </>
+      )}
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <NotificationProvider>
-        <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)/sign-in" />
-            <Stack.Screen name="(auth)/sign-up" />
-            <Stack.Screen name="profile/view" />
-            <Stack.Screen name="profile/edit" />
-            <Stack.Screen name="profile/change-password" />
-          </Stack>
-        </AuthProvider>
-      </NotificationProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

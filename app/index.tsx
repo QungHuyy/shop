@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [saleProducts, setSaleProducts] = useState<Product[]>([]);
+  const [saleProducts, setSaleProducts] = useState<SaleProduct[]>([]);
   const [maleProducts, setMaleProducts] = useState<Product[]>([]);
   const [femaleProducts, setFemaleProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,21 +46,17 @@ export default function HomeScreen() {
   const banners = [
     {
       id: 1,
-      image: 'https://img.freepik.com/free-vector/fashion-sale-banner-template_23-2148622444.jpg',
-      title: 'Flash Sale 50%',
-      subtitle: 'Giảm giá lên đến 50% cho tất cả sản phẩm',
+      image: 'https://img.freepik.com/premium-vector/flash-sale-50-off-banner-template-design-web-advertising-social-media_333987-1335.jpg',
+  
     },
     {
       id: 2,
       image: 'https://static.vecteezy.com/system/resources/previews/044/637/679/non_2x/summer-sale-poster-or-banner-template-featuring-a-tropical-beach-scene-with-sun-and-party-elements-product-display-tropical-summer-scene-perfect-for-promoting-your-summer-products-on-blue-background-vector.jpg',
-      title: 'Voucher 100K',
-      subtitle: 'Nhận ngay voucher 100.000đ cho đơn hàng đầu tiên',
     },
     {
       id: 3,
       image: 'https://img.freepik.com/free-vector/gradient-sale-background_23-2149050986.jpg',
-      title: 'Miễn phí vận chuyển',
-      subtitle: 'Free ship toàn quốc cho đơn hàng từ 299.000đ',
+
     },
   ];
 
@@ -103,7 +99,7 @@ export default function HomeScreen() {
       const [categoriesData, saleData, maleData, femaleData, bestSellingData] = 
         await Promise.all([
           productService.getCategories(),
-          productService.getSaleProductsFromServer(),
+          productService.getSaleProducts(),
           productService.getProductsByGender('Male', 4),
           productService.getProductsByGender('Female', 4),
           productService.getBestSellingProducts(6)
@@ -245,12 +241,6 @@ export default function HomeScreen() {
           >
             <Ionicons name="person-outline" size={24} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => router.push('./debug')}
-          >
-            <Ionicons name="bug-outline" size={20} color="#333" />
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -279,7 +269,7 @@ export default function HomeScreen() {
                 <Text style={styles.bannerTitle}>{banner.title}</Text>
                 <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
                 <TouchableOpacity style={styles.bannerButton}>
-                  <Text style={styles.bannerButtonText}>Mua ngay</Text>
+                  {/* <Text style={styles.bannerButtonText}>Mua ngay</Text> */}
                 </TouchableOpacity>
               </View>
             </View>
@@ -323,7 +313,7 @@ export default function HomeScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Danh mục sản phẩm</Text>
-        <TouchableOpacity onPress={() => router.push('./products')}>
+        <TouchableOpacity>
           <Text style={styles.seeAll}>Xem tất cả</Text>
         </TouchableOpacity>
       </View>
@@ -398,7 +388,7 @@ export default function HomeScreen() {
                 resizeMode="cover"
               />
               <View style={styles.saleTag}>
-                <Text style={styles.saleText}>-{item.promotion || 0}%</Text>
+                <Text style={styles.saleText}>-{item.promotion}%</Text>
               </View>
               <View style={styles.favoriteButton}>
                 <Ionicons name="heart-outline" size={20} color="#ff4757" />
@@ -409,7 +399,7 @@ export default function HomeScreen() {
                 </Text>
                 <View style={styles.priceContainer}>
                   <Text style={styles.salePrice}>
-                    {productService.formatPrice(item.salePrice || item.price_product)}
+                    {productService.formatPrice(item.salePrice)}
                   </Text>
                   <Text style={styles.originalPrice}>
                     {productService.formatPrice(item.price_product)}
@@ -451,11 +441,6 @@ export default function HomeScreen() {
                 style={styles.gridProductImage}
                 resizeMode="cover"
               />
-              {product.promotion && (
-                <View style={styles.gridSaleTag}>
-                  <Text style={styles.gridSaleText}>-{product.promotion}%</Text>
-                </View>
-              )}
               <View style={styles.gridFavoriteButton}>
                 <Ionicons name="heart-outline" size={16} color="#ff4757" />
               </View>
@@ -463,22 +448,9 @@ export default function HomeScreen() {
                 <Text style={styles.gridProductName} numberOfLines={2}>
                   {product.name_product}
                 </Text>
-                
-                {product.promotion && product.salePrice ? (
-                  <View style={styles.gridPriceContainer}>
-                    <Text style={styles.gridSalePrice}>
-                      {productService.formatPrice(product.salePrice || product.price_product)}
-                    </Text>
-                    <Text style={styles.gridOriginalPrice}>
-                      {productService.formatPrice(product.price_product)}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.gridProductPrice}>
-                    {productService.formatPrice(product.price_product)}
-                  </Text>
-                )}
-                
+                <Text style={styles.gridProductPrice}>
+                  {productService.formatPrice(product.price_product)}
+                </Text>
                 <View style={styles.gridRatingContainer}>
                   <Text style={styles.gridRating}>⭐ 4.3</Text>
                   <Text style={styles.gridSoldCount}>{product.number} đã bán</Text>
@@ -940,36 +912,6 @@ const styles = StyleSheet.create({
   gridSoldCount: {
     fontSize: 10,
     color: '#666',
-  },
-  gridSaleTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#ff4757',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  gridSaleText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  gridPriceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  gridSalePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ff0000',
-    marginRight: 8,
-  },
-  gridOriginalPrice: {
-    fontSize: 12,
-    color: '#999',
-    textDecorationLine: 'line-through',
   },
   modalOverlay: {
     flex: 1,

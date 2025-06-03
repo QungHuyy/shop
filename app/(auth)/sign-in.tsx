@@ -5,15 +5,14 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNotification } from '../../contexts/NotificationContext';
+import authService from '../../services/authService';
 
 interface SignInFormValues {
   username: string;
@@ -22,7 +21,6 @@ interface SignInFormValues {
 
 export default function SignIn() {
   const { signIn } = useAuth();
-  const { showSuccess, showError } = useNotification();
   const [error, setError] = useState<string>('');
 
   const validationSchema = Yup.object({
@@ -32,214 +30,145 @@ export default function SignIn() {
       .required('Mật khẩu là bắt buộc'),
   });
 
-  const handleSubmit = async (values: SignInFormValues, { setSubmitting }: any) => {
+  const handleSubmit = async (values: SignInFormValues) => {
     try {
-      setError('');
       console.log('Đang gửi yêu cầu đăng nhập với:', values);
+      const response = await authService.signIn({
+        username: values.username,
+        password: values.password
+      });
       
-      await signIn(values.username, values.password);
-      showSuccess('Đăng nhập thành công! Chào mừng bạn đến với ứng dụng.');
+      console.log('Phản hồi từ server:', response);
       
-      // Redirect về trang chủ sau khi đăng nhập thành công
-      setTimeout(() => {
-        router.replace('/');
-      }, 1000);
-      
+      if (response) {
+        console.log('Đăng nhập thành công, thông tin user:', response);
+        Alert.alert('Thành công', 'Đăng nhập thành công!');
+        router.replace('/(app)/home');
+      }
     } catch (err: any) {
       console.error('Lỗi đăng nhập:', err);
       const message = err.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
       setError(message);
-      showError(message);
-    } finally {
-      setSubmitting(false);
+      Alert.alert('Lỗi', message);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.keyboardAvoidingView}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Đăng nhập</Text>
-            <Text style={styles.subtitle}>Chào mừng bạn quay trở lại!</Text>
-          </View>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Đăng nhập</Text>
 
-          <Formik
-            initialValues={{ username: '', password: '' }}
-            validationSchema={validationSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
-              <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Tên đăng nhập</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      touched.username && errors.username && styles.inputError
-                    ]}
-                    placeholder="Nhập tên đăng nhập"
-                    onChangeText={handleChange('username')}
-                    onBlur={handleBlur('username')}
-                    value={values.username}
-                    autoCapitalize="none"
-                    returnKeyType="next"
-                    blurOnSubmit={false}
-                  />
-                  {touched.username && errors.username && (
-                    <Text style={styles.errorText}>{errors.username}</Text>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Mật khẩu</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      touched.password && errors.password && styles.inputError
-                    ]}
-                    placeholder="Nhập mật khẩu"
-                    onChangeText={handleChange('password')}
-                    onBlur={handleBlur('password')}
-                    value={values.password}
-                    secureTextEntry
-                    returnKeyType="done"
-                    onSubmitEditing={() => handleSubmit()}
-                  />
-                  {touched.password && errors.password && (
-                    <Text style={styles.errorText}>{errors.password}</Text>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.button, isSubmitting && styles.buttonDisabled]}
-                  onPress={() => handleSubmit()}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.buttonText}>
-                    {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => router.push('/sign-up')}
-                >
-                  <Text style={styles.linkText}>
-                    Chưa có tài khoản? <Text style={styles.linkTextBold}>Đăng ký ngay</Text>
-                  </Text>
-                </TouchableOpacity>
+        <Formik
+          initialValues={{ username: '', password: '' }}
+          validationSchema={validationSchema}
+          onSubmit={handleSubmit}
+        >
+          {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Tên đăng nhập"
+                  onChangeText={handleChange('username')}
+                  onBlur={handleBlur('username')}
+                  value={values.username}
+                  autoCapitalize="none"
+                />
+                {touched.username && errors.username && (
+                  <Text style={styles.errorText}>{errors.username}</Text>
+                )}
               </View>
-            )}
-          </Formik>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mật khẩu"
+                  onChangeText={handleChange('password')}
+                  onBlur={handleBlur('password')}
+                  value={values.password}
+                  secureTextEntry
+                />
+                {touched.password && errors.password && (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => handleSubmit()}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.buttonText}>
+                  {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => router.push('/sign-up')}
+              >
+                <Text style={styles.linkText}>
+                  Chưa có tài khoản? Đăng ký ngay
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Formik>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: Platform.OS === 'ios' ? '100%' : 'auto',
   },
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
   },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
     textAlign: 'center',
+    marginBottom: 30,
   },
   form: {
     width: '100%',
   },
   inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    marginBottom: 15,
   },
   input: {
     backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
+    padding: 15,
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
-    fontSize: 16,
-  },
-  inputError: {
-    borderColor: '#dc3545',
+    borderColor: '#ddd',
   },
   errorText: {
-    color: '#dc3545',
+    color: 'red',
     fontSize: 12,
     marginTop: 5,
   },
   button: {
-    backgroundColor: '#007bff',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: '#1976d2',
+    padding: 15,
+    borderRadius: 5,
     marginTop: 10,
-    shadowColor: '#007bff',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  buttonDisabled: {
-    backgroundColor: '#6c757d',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   buttonText: {
     color: 'white',
     textAlign: 'center',
     fontWeight: 'bold',
-    fontSize: 16,
   },
   linkButton: {
-    marginTop: 20,
-    alignItems: 'center',
+    marginTop: 15,
   },
   linkText: {
-    color: '#666',
-    fontSize: 14,
+    color: '#1976d2',
     textAlign: 'center',
-  },
-  linkTextBold: {
-    color: '#007bff',
-    fontWeight: 'bold',
   },
 }); 
