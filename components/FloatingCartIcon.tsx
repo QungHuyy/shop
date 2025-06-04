@@ -21,6 +21,8 @@ const FloatingCartIcon = () => {
     '/cart',
     '/cart/',
     '/cart/index',
+    '/(tabs)/account',
+    '/account',
   ];
 
   // Define route patterns that should hide the icon
@@ -28,6 +30,8 @@ const FloatingCartIcon = () => {
     '/profile',
     '/cart',
     '/(auth)',
+    '/(tabs)/account',
+    '/account',
   ];
 
   // Check if current route should hide the cart icon
