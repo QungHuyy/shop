@@ -1,13 +1,13 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -16,26 +16,31 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#fed700',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarInactiveTintColor: '#666',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          paddingTop: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 5,
-        },
+        tabBarStyle: Platform.select({
+          ios: {
+            backgroundColor: 'white',
+            borderTopWidth: 0,
+            elevation: 0,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+            height: 88,
+          },
+          default: {
+            backgroundColor: 'white',
+            borderTopWidth: 0,
+            elevation: 8,
+            height: 60,
+          },
+        }),
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
+          fontWeight: '600',
         },
       }}>
       <Tabs.Screen
@@ -43,11 +48,7 @@ export default function TabLayout() {
         options={{
           title: 'Trang chủ',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? 'home' : 'home-outline'} 
-              size={24} 
-              color={color} 
-            />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -56,11 +57,16 @@ export default function TabLayout() {
         options={{
           title: 'Đơn hàng',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? 'receipt' : 'receipt-outline'} 
-              size={24} 
-              color={color} 
-            />
+            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cart"
+        options={{
+          title: 'Giỏ hàng',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'bag' : 'bag-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -69,11 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Tài khoản',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? 'person' : 'person-outline'} 
-              size={24} 
-              color={color} 
-            />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />

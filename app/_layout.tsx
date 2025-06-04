@@ -4,7 +4,6 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import FloatingCartIcon from '../components/FloatingCartIcon';
 
 export default function RootLayout() {
   return (
@@ -21,7 +20,6 @@ export default function RootLayout() {
               <Stack.Screen name="profile/change-password" />
               <Stack.Screen name="cart/index" />
             </Stack>
-            <FloatingCartIcon />
           </CartProvider>
         </AuthProvider>
       </NotificationProvider>

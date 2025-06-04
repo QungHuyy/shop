@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   FlatList,
-  Dimensions,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -17,10 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import productService, { Product } from '@/services/productService';
-
-const { width } = Dimensions.get('window');
+import { useCart } from '@/contexts/CartContext';
+import { styles } from './styles';
 
 // Filter interfaces
 interface PriceRange {
@@ -37,6 +35,8 @@ interface FilterOptions {
 
 export default function ProductsScreen() {
   const router = useRouter();
+  const { gender, filter } = useLocalSearchParams();
+  const { cartSummary } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +74,26 @@ export default function ProductsScreen() {
   useEffect(() => {
     loadAllProducts();
   }, []);
+
+  useEffect(() => {
+    // Xử lý query parameters từ navigation
+    if (gender && typeof gender === 'string') {
+      console.log('Setting gender filter:', gender);
+      setSelectedGender(gender);
+    }
+    
+    if (filter && typeof filter === 'string') {
+      console.log('Setting filter:', filter);
+      if (filter === 'sale') {
+        setFilters(prev => ({ ...prev, hasPromotion: true }));
+      } else if (filter === 'bestseller') {
+        setFilters(prev => ({ ...prev, sortBy: 'promotion_desc' }));
+      } else if (filter === 'new') {
+        // Có thể thêm logic cho sản phẩm mới
+        setFilters(prev => ({ ...prev, sortBy: 'default' }));
+      }
+    }
+  }, [gender, filter]);
 
   useEffect(() => {
     filterProducts();
@@ -202,6 +222,24 @@ export default function ProductsScreen() {
     if (filters.hasPromotion !== null) count++;
     if (filters.sortBy !== 'default') count++;
     return count;
+  };
+
+  const getHeaderTitle = () => {
+    if (filter === 'sale') {
+      return 'Sản phẩm giảm giá';
+    } else if (filter === 'bestseller') {
+      return 'Sản phẩm bán chạy';
+    } else if (filter === 'new') {
+      return 'Sản phẩm mới';
+    } else if (gender === 'Male') {
+      return 'Sản phẩm nam';
+    } else if (gender === 'Female') {
+      return 'Sản phẩm nữ';
+    } else if (gender === 'Unisex') {
+      return 'Sản phẩm Unisex';
+    } else {
+      return 'Tất cả sản phẩm';
+    }
   };
 
   const renderFilterModal = () => (
@@ -342,8 +380,73 @@ export default function ProductsScreen() {
     </Modal>
   );
 
+  const renderProduct = ({ item }: { item: Product }) => (
+    <TouchableOpacity 
+      style={styles.productCard}
+      onPress={() => handleProductPress(item)}
+    >
+      <View style={styles.productImageContainer}>
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+        {item.promotion && (
+          <View style={styles.saleTag}>
+            <Text style={styles.saleText}>-{item.promotion}%</Text>
+          </View>
+        )}
+        <TouchableOpacity style={styles.favoriteButton}>
+          <Ionicons name="heart-outline" size={20} color="#ff4757" />
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.productInfo}>
+        <Text style={styles.productName} numberOfLines={2}>
+          {item.name_product}
+        </Text>
+        
+        {item.promotion && item.salePrice ? (
+          <View style={styles.priceContainer}>
+            <Text style={styles.salePrice}>
+              {productService.formatPrice(item.salePrice)}
+            </Text>
+            <Text style={styles.originalPrice}>
+              {productService.formatPrice(item.price_product)}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.productPrice}>
+            {productService.formatPrice(item.price_product)}
+          </Text>
+        )}
+        
+        <View style={styles.productMeta}>
+          <View style={styles.ratingContainer}>
+            <Ionicons name="star" size={14} color="#ffa502" />
+            <Text style={styles.ratingText}>4.5</Text>
+          </View>
+          <Text style={styles.soldCount}>
+            Đã bán {item.number}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="search-outline" size={64} color="#ccc" />
+      <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm</Text>
+      <Text style={styles.emptySubtitle}>
+        Hãy thử tìm kiếm với từ khóa khác
+      </Text>
+    </View>
+  );
+
   const renderHeader = () => (
     <View style={styles.header}>
+      {/* Back button row */}
       <View style={styles.headerTop}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -351,8 +454,20 @@ export default function ProductsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tất cả sản phẩm</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
+        <TouchableOpacity 
+          style={styles.cartButton}
+          onPress={() => router.push('/(tabs)/cart')}
+        >
+          <Ionicons name="bag-outline" size={24} color="#333" />
+          {cartSummary?.totalItems > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>
+                {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -444,70 +559,6 @@ export default function ProductsScreen() {
     </View>
   );
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity 
-      style={styles.productCard}
-      onPress={() => handleProductPress(item)}
-    >
-      <View style={styles.productImageContainer}>
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-        {item.promotion && (
-          <View style={styles.saleTag}>
-            <Text style={styles.saleText}>-{item.promotion}%</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="#ff4757" />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {item.name_product}
-        </Text>
-        
-        {item.promotion && item.salePrice ? (
-          <View style={styles.priceContainer}>
-            <Text style={styles.salePrice}>
-              {productService.formatPrice(item.salePrice)}
-            </Text>
-            <Text style={styles.originalPrice}>
-              {productService.formatPrice(item.price_product)}
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.productPrice}>
-            {productService.formatPrice(item.price_product)}
-          </Text>
-        )}
-        
-        <View style={styles.productMeta}>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={14} color="#ffa502" />
-            <Text style={styles.ratingText}>4.5</Text>
-          </View>
-          <Text style={styles.soldCount}>
-            Đã bán {item.number}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm</Text>
-      <Text style={styles.emptySubtitle}>
-        Hãy thử tìm kiếm với từ khóa khác
-      </Text>
-    </View>
-  );
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -524,9 +575,7 @@ export default function ProductsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#fed700" />
-      
       {renderHeader()}
-
       <FlatList
         data={filteredProducts}
         renderItem={renderProduct}
@@ -545,388 +594,7 @@ export default function ProductsScreen() {
         ListEmptyComponent={renderEmptyState}
         columnWrapperStyle={styles.row}
       />
-
       {renderFilterModal()}
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    backgroundColor: '#fed700',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  placeholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 25,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#333',
-  },
-  clearButton: {
-    padding: 4,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  genderFilterContainer: {
-    marginRight: 10,
-  },
-  filterChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  filterChipActive: {
-    backgroundColor: 'white',
-  },
-  filterChipText: {
-    color: '#333',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#fed700',
-    fontWeight: 'bold',
-  },
-  filterButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: 'white',
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#ff4757',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  resultContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  countText: {
-    color: '#333',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  clearFiltersButton: {
-    padding: 8,
-    backgroundColor: '#ff4757',
-    borderRadius: 15,
-  },
-  clearFiltersText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  errorText: {
-    color: '#ff4757',
-    fontSize: 12,
-    marginLeft: 5,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
-  },
-  productsList: {
-    padding: 16,
-  },
-  row: {
-    justifyContent: 'space-between',
-  },
-  productCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    width: (width - 48) / 2,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImageContainer: {
-    position: 'relative',
-  },
-  productImage: {
-    width: '100%',
-    height: 160,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productInfo: {
-    padding: 12,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ff0000',
-    marginBottom: 8,
-  },
-  productMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  soldCount: {
-    fontSize: 10,
-    color: '#999',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-  },
-  saleTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#ff4757',
-    borderRadius: 15,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  saleText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  salePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ff0000',
-    marginRight: 4,
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: '#999',
-    textDecorationLine: 'line-through',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  filterModal: {
-    backgroundColor: 'white',
-    width: '100%',
-    height: '80%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  filterTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  filterContent: {
-    flex: 1,
-    paddingVertical: 10,
-  },
-  filterSection: {
-    marginBottom: 25,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: '#fff',
-  },
-  filterOptionActive: {
-    borderColor: '#fed700',
-    backgroundColor: '#fff9e6',
-  },
-  filterOptionText: {
-    color: '#333',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterOptionTextActive: {
-    color: '#fed700',
-    fontWeight: 'bold',
-  },
-  filterFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    gap: 15,
-  },
-  resetButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  applyButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#fed700',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-}); 
+} 

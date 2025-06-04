@@ -26,7 +26,7 @@ const { width } = Dimensions.get('window');
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
   const { isAuthenticated, user } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, cartSummary } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | null>(null);
@@ -430,8 +430,18 @@ export default function ProductDetail() {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
-        <TouchableOpacity style={styles.shareButton}>
-          <Ionicons name="share-outline" size={24} color="#333" />
+        <TouchableOpacity 
+          style={styles.shareButton}
+          onPress={() => router.push('/(tabs)/cart')}
+        >
+          <Ionicons name="bag-outline" size={24} color="#333" />
+          {cartSummary?.totalItems > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>
+                {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -1128,5 +1138,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ff4757',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 }); 

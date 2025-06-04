@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import productService, { Product, Category, SaleProduct } from '@/services/productService';
 import { useCart } from '@/contexts/CartContext';
+import AppHeader from '@/components/AppHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -40,6 +41,7 @@ export default function HomeScreen() {
   const [saleProducts, setSaleProducts] = useState<Product[]>([]);
   const [maleProducts, setMaleProducts] = useState<Product[]>([]);
   const [femaleProducts, setFemaleProducts] = useState<Product[]>([]);
+  const [unisexProducts, setUnisexProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -102,12 +104,13 @@ export default function HomeScreen() {
       setLoading(true);
       
       // Load data song song để tăng tốc độ
-      const [categoriesData, saleData, maleData, femaleData, bestSellingData] = 
+      const [categoriesData, saleData, maleData, femaleData, unisexData, bestSellingData] = 
         await Promise.all([
           productService.getCategories(),
           productService.getSaleProductsFromServer(),
           productService.getProductsByGender('Male', 4),
           productService.getProductsByGender('Female', 4),
+          productService.getProductsByGender('Unisex', 4),
           productService.getBestSellingProducts(6)
         ]);
 
@@ -115,6 +118,7 @@ export default function HomeScreen() {
       setSaleProducts(saleData);
       setMaleProducts(maleData);
       setFemaleProducts(femaleData);
+      setUnisexProducts(unisexData);
       setProducts(bestSellingData);
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu:', error);
@@ -143,18 +147,31 @@ export default function HomeScreen() {
   };
 
   const handleQuickAction = (action: string) => {
-    Alert.alert('Thông báo', `Bạn đã chọn: ${action}`);
-    // TODO: Navigate to specific screens based on action
+    switch (action) {
+      case 'sale':
+        router.push('/products?filter=sale');
+        break;
+      case 'voucher':
+        Alert.alert('Voucher', 'Tính năng voucher đang được phát triển');
+        break;
+      case 'new':
+        router.push('/products?filter=new');
+        break;
+      case 'bestseller':
+        router.push('/products?filter=bestseller');
+        break;
+      default:
+        Alert.alert('Thông báo', `Bạn đã chọn: ${action}`);
+    }
   };
 
   const handleProductPress = (product: Product | SaleProduct) => {
-    Alert.alert('Sản phẩm', `Bạn đã chọn: ${product.name_product}`);
-    // TODO: Navigate to product detail screen
+    console.log('Navigating to product:', product._id);
+    router.push(`/products/${product._id}`);
   };
 
   const handleCategoryPress = (gender: string) => {
-    Alert.alert('Danh mục', `Xem sản phẩm: ${gender}`);
-    // TODO: Navigate to product list screen
+    router.push(`/products?gender=${gender}`);
   };
 
   const renderUserModal = () => (
@@ -211,44 +228,6 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
     </Modal>
-  );
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1748992588/1_qrtmcd.png' }}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Search bar */}
-        <TouchableOpacity style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color="#666" />
-          <Text style={styles.searchPlaceholder}>Tìm kiếm sản phẩm</Text>
-        </TouchableOpacity>
-
-        {/* Header icons */}
-        <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="camera-outline" size={22} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="bag-outline" size={22} color="#333" />
-            {cartSummary?.totalItems > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
   );
 
   const renderBanner = () => (
@@ -318,14 +297,14 @@ export default function HomeScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Danh mục sản phẩm</Text>
-        <TouchableOpacity onPress={() => router.push('./products')}>
+        <TouchableOpacity onPress={() => router.push('/products')}>
           <Text style={styles.seeAll}>Xem tất cả</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.categoriesContainer}>
         <TouchableOpacity 
           style={styles.categoryCard}
-          onPress={() => handleCategoryPress('Nam')}
+          onPress={() => handleCategoryPress('Male')}
         >
           <Image
             source={{ uri: 'https://theme.hstatic.net/200000690725/1001078549/14/home_category_1_img.jpg?v=743' }}
@@ -338,7 +317,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.categoryCard}
-          onPress={() => handleCategoryPress('Nữ')}
+          onPress={() => handleCategoryPress('Female')}
         >
           <Image
             source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1748127256/unnamed_pj2cqe.png' }}
@@ -373,7 +352,7 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>🔥 Sản phẩm giảm giá</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/products?filter=sale')}>
             <Text style={styles.seeAll}>Xem tất cả</Text>
           </TouchableOpacity>
         </View>
@@ -426,11 +405,25 @@ export default function HomeScreen() {
   const renderProductGrid = (title: string, products: Product[], icon: string = '') => {
     if (products.length === 0) return null;
 
+    const getSeeAllAction = () => {
+      if (title.includes('nam')) {
+        return () => router.push('/products?gender=Male');
+      } else if (title.includes('nữ')) {
+        return () => router.push('/products?gender=Female');
+      } else if (title.includes('Unisex')) {
+        return () => router.push('/products?gender=Unisex');
+      } else if (title.includes('bán chạy')) {
+        return () => router.push('/products?filter=bestseller');
+      } else {
+        return () => router.push('/products');
+      }
+    };
+
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{icon} {title}</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={getSeeAllAction()}>
             <Text style={styles.seeAll}>Xem tất cả</Text>
           </TouchableOpacity>
         </View>
@@ -497,7 +490,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" backgroundColor="#fed700" />
-        {renderHeader()}
+        <AppHeader />
         {renderLoading()}
       </SafeAreaView>
     );
@@ -507,7 +500,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#fed700" />
       
-      {renderHeader()}
+      <AppHeader />
 
       <ScrollView 
         style={[styles.content, { marginBottom: -50 }]}
@@ -526,6 +519,7 @@ export default function HomeScreen() {
         {renderSaleProducts()}
         {renderProductGrid('Sản phẩm nam', maleProducts, '👨')}
         {renderProductGrid('Sản phẩm nữ', femaleProducts, '👩')}
+        {renderProductGrid('Sản phẩm Unisex', unisexProducts, '👥')}
         {renderProductGrid('Sản phẩm bán chạy', products, '⭐')}
       </ScrollView>
       
@@ -538,74 +532,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fed700',
-  },
-  header: {
-    backgroundColor: '#fed700',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 16,
-
-    elevation: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  logoContainer: {
-    marginRight: 12,
-  },
-  logoImage: {
-    width: 40,
-    height: 40,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 12,
-  },
-  searchPlaceholder: {
-    marginLeft: 8,
-    color: '#999',
-    fontSize: 14,
-    flex: 1,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    position: 'relative',
-    marginLeft: 8,
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#f8f8f8',
-  },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#ff6b6b',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-    paddingHorizontal: 4,
   },
   content: {
     flex: 1,

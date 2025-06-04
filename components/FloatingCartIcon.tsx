@@ -37,7 +37,9 @@ const FloatingCartIcon = () => {
   // Check if current route should hide the cart icon
   const shouldHideIcon = 
     hiddenRoutes.includes(pathname) ||
-    hiddenPatterns.some(pattern => pathname.startsWith(pattern));
+    hiddenPatterns.some(pattern => pathname.startsWith(pattern)) ||
+    pathname === '/(tabs)/account' ||
+    pathname === '/account';
 
   // Animate when cart items change
   useEffect(() => {
@@ -138,6 +140,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   badge: {
     position: 'absolute',
