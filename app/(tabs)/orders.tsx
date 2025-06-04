@@ -9,43 +9,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useCart } from '../../contexts/CartContext';
 
 export default function OrdersScreen() {
-  const router = useRouter();
-  const { cartSummary } = useCart();
-
-  const handleGoBack = () => {
-    router.back();
-  };
-
-  const handleGoToCart = () => {
-    router.push('/(tabs)/cart');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#fed700" />
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        
         <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
-        
-        <TouchableOpacity style={styles.cartButton} onPress={handleGoToCart}>
-          <Ionicons name="bag-outline" size={24} color="#333" />
-          {cartSummary?.totalItems > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>
-                {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
       
       <ScrollView style={styles.content}>
@@ -77,15 +49,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -93,33 +56,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    flex: 1,
-    textAlign: 'center',
-  },
-  cartButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#ff4757',
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  cartBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   content: {
     flex: 1,

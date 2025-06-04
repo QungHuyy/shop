@@ -120,6 +120,13 @@ export default function HomeScreen() {
       setFemaleProducts(femaleData);
       setUnisexProducts(unisexData);
       setProducts(bestSellingData);
+      
+      // Debug log để kiểm tra dữ liệu
+      console.log('📊 Data loaded:');
+      console.log('- Male products:', maleData.length);
+      console.log('- Female products:', femaleData.length); 
+      console.log('- Unisex products:', unisexData.length);
+      console.log('- Sale products:', saleData.length);
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại sau.');
@@ -147,17 +154,21 @@ export default function HomeScreen() {
   };
 
   const handleQuickAction = (action: string) => {
+    console.log('🚀 Quick action pressed:', action);
     switch (action) {
       case 'sale':
+        console.log('▶️ Navigating to sale products');
         router.push('/products?filter=sale');
         break;
       case 'voucher':
         Alert.alert('Voucher', 'Tính năng voucher đang được phát triển');
         break;
       case 'new':
+        console.log('▶️ Navigating to new products');
         router.push('/products?filter=new');
         break;
       case 'bestseller':
+        console.log('▶️ Navigating to bestseller products');
         router.push('/products?filter=bestseller');
         break;
       default:
@@ -166,11 +177,12 @@ export default function HomeScreen() {
   };
 
   const handleProductPress = (product: Product | SaleProduct) => {
-    console.log('Navigating to product:', product._id);
+    console.log('🔍 Product pressed:', product._id, product.name_product);
     router.push(`/products/${product._id}`);
   };
 
   const handleCategoryPress = (gender: string) => {
+    console.log('🎯 Category pressed:', gender);
     router.push(`/products?gender=${gender}`);
   };
 
@@ -403,19 +415,37 @@ export default function HomeScreen() {
   };
 
   const renderProductGrid = (title: string, products: Product[], icon: string = '') => {
-    if (products.length === 0) return null;
+    // Chỉ ẩn section nếu không phải Unisex và không có sản phẩm
+    if (products.length === 0 && !title.includes('Unisex')) {
+      return null;
+    }
 
     const getSeeAllAction = () => {
       if (title.includes('nam')) {
-        return () => router.push('/products?gender=Male');
+        return () => {
+          console.log('📋 See all pressed: Male products');
+          router.push('/products?gender=Male');
+        };
       } else if (title.includes('nữ')) {
-        return () => router.push('/products?gender=Female');
+        return () => {
+          console.log('📋 See all pressed: Female products');
+          router.push('/products?gender=Female');
+        };
       } else if (title.includes('Unisex')) {
-        return () => router.push('/products?gender=Unisex');
+        return () => {
+          console.log('📋 See all pressed: Unisex products');
+          router.push('/products?gender=Unisex');
+        };
       } else if (title.includes('bán chạy')) {
-        return () => router.push('/products?filter=bestseller');
+        return () => {
+          console.log('📋 See all pressed: Bestseller products');
+          router.push('/products?filter=bestseller');
+        };
       } else {
-        return () => router.push('/products');
+        return () => {
+          console.log('📋 See all pressed: All products');
+          router.push('/products');
+        };
       }
     };
 
@@ -427,54 +457,64 @@ export default function HomeScreen() {
             <Text style={styles.seeAll}>Xem tất cả</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.productGrid}>
-          {products.map((product) => (
-            <TouchableOpacity 
-              key={product._id} 
-              style={styles.gridProductCard}
-              onPress={() => handleProductPress(product)}
-            >
-              <Image
-                source={{ uri: product.image }}
-                style={styles.gridProductImage}
-                resizeMode="cover"
-              />
-              {product.promotion && (
-                <View style={styles.gridSaleTag}>
-                  <Text style={styles.gridSaleText}>-{product.promotion}%</Text>
+        
+        {products.length === 0 ? (
+          // Hiển thị trạng thái empty cho Unisex
+          <View style={styles.emptySection}>
+            <Text style={styles.emptySectionText}>
+              🔄 Đang cập nhật sản phẩm {title.toLowerCase()}...
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.productGrid}>
+            {products.map((product) => (
+              <TouchableOpacity 
+                key={product._id} 
+                style={styles.gridProductCard}
+                onPress={() => handleProductPress(product)}
+              >
+                <Image
+                  source={{ uri: product.image }}
+                  style={styles.gridProductImage}
+                  resizeMode="cover"
+                />
+                {product.promotion && (
+                  <View style={styles.gridSaleTag}>
+                    <Text style={styles.gridSaleText}>-{product.promotion}%</Text>
+                  </View>
+                )}
+                <View style={styles.gridFavoriteButton}>
+                  <Ionicons name="heart-outline" size={16} color="#ff4757" />
                 </View>
-              )}
-              <View style={styles.gridFavoriteButton}>
-                <Ionicons name="heart-outline" size={16} color="#ff4757" />
-              </View>
-              <View style={styles.gridProductInfo}>
-                <Text style={styles.gridProductName} numberOfLines={2}>
-                  {product.name_product}
-                </Text>
-                
-                {product.promotion && product.salePrice ? (
-                  <View style={styles.gridPriceContainer}>
-                    <Text style={styles.gridSalePrice}>
-                      {productService.formatPrice(product.salePrice || product.price_product)}
-                    </Text>
-                    <Text style={styles.gridOriginalPrice}>
+                <View style={styles.gridProductInfo}>
+                  <Text style={styles.gridProductName} numberOfLines={2}>
+                    {product.name_product}
+                  </Text>
+                  
+                  {product.promotion && product.salePrice ? (
+                    <View style={styles.gridPriceContainer}>
+                      <Text style={styles.gridSalePrice}>
+                        {productService.formatPrice(product.salePrice || product.price_product)}
+                      </Text>
+                      <Text style={styles.gridOriginalPrice}>
+                        {productService.formatPrice(product.price_product)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.gridProductPrice}>
                       {productService.formatPrice(product.price_product)}
                     </Text>
+                  )}
+                  
+                  <View style={styles.gridRatingContainer}>
+                    <Text style={styles.gridRating}>⭐ 4.3</Text>
+                    <Text style={styles.gridSoldCount}>{product.number} đã bán</Text>
                   </View>
-                ) : (
-                  <Text style={styles.gridProductPrice}>
-                    {productService.formatPrice(product.price_product)}
-                  </Text>
-                )}
-                
-                <View style={styles.gridRatingContainer}>
-                  <Text style={styles.gridRating}>⭐ 4.3</Text>
-                  <Text style={styles.gridSoldCount}>{product.number} đã bán</Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -920,5 +960,22 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 16,
     color: '#333',
+  },
+  emptySection: {
+    paddingHorizontal: 16,
+    paddingVertical: 40,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    marginHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  emptySectionText: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

@@ -77,15 +77,17 @@ export default function ProductsScreen() {
 
   useEffect(() => {
     // Xử lý query parameters từ navigation
+    console.log('📍 Query params received:', { gender, filter });
+    
     if (gender && typeof gender === 'string') {
-      console.log('Setting gender filter:', gender);
+      console.log('🎯 Setting gender filter:', gender);
       setSelectedGender(gender);
     }
     
     if (filter && typeof filter === 'string') {
-      console.log('Setting filter:', filter);
+      console.log('🎯 Setting filter:', filter);
       if (filter === 'sale') {
-        setFilters(prev => ({ ...prev, hasPromotion: true }));
+        setFilters(prev => ({ ...prev, hasPromotion: true, sortBy: 'promotion_desc' }));
       } else if (filter === 'bestseller') {
         setFilters(prev => ({ ...prev, sortBy: 'promotion_desc' }));
       } else if (filter === 'new') {
