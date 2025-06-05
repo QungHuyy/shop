@@ -459,7 +459,7 @@ export default function ProductsScreen() {
         <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
         <TouchableOpacity 
           style={styles.cartButton}
-          onPress={() => router.push('/(tabs)/cart')}
+          onPress={() => router.push('/cart')}
         >
           <Ionicons name="bag-outline" size={24} color="#333" />
           {cartSummary?.totalItems > 0 && (

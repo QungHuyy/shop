@@ -80,7 +80,7 @@ const FloatingCartIcon = () => {
       }),
     ]).start();
 
-    router.push('../../cart/');
+    router.push('/cart');
   };
 
   const bounceTransform = bounceAnim.interpolate({

@@ -242,7 +242,7 @@ export default function ProductDetail() {
       if (success) {
         Alert.alert('Thành công', `Đã thêm ${quantity} ${product.name_product} (Size ${selectedSize}) vào giỏ hàng`, [
           { text: 'Tiếp tục mua', style: 'cancel' },
-          { text: 'Xem giỏ hàng', onPress: () => router.push('../../cart/') }
+          { text: 'Xem giỏ hàng', onPress: () => router.push('/cart') }
         ]);
       } else {
         Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ hàng');
@@ -432,7 +432,7 @@ export default function ProductDetail() {
         <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
         <TouchableOpacity 
           style={styles.shareButton}
-          onPress={() => router.push('/(tabs)/cart')}
+          onPress={() => router.push('/cart')}
         >
           <Ionicons name="bag-outline" size={24} color="#333" />
           {cartSummary?.totalItems > 0 && (

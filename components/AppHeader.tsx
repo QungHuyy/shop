@@ -27,7 +27,7 @@ export default function AppHeader({
   const handleCartPress = () => {
     console.log('Cart button pressed');
     // Navigate to cart tab
-    router.push('/(tabs)/cart');
+    router.push('/cart');
   };
 
   return (

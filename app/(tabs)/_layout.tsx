@@ -62,15 +62,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="cart"
-        options={{
-          title: 'Giỏ hàng',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bag' : 'bag-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="account"
         options={{
           title: 'Tài khoản',
