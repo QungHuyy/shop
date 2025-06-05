@@ -15,15 +15,36 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import orderHistoryService, { OrderHistory } from '../../services/orderHistoryService';
+
+type OrderStatus = '1' | '2' | '3' | '4' | '0';
+
+interface StatusTab {
+  key: OrderStatus;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+const STATUS_TABS: StatusTab[] = [
+  { key: '1', label: 'Đang xử lý', icon: 'hourglass-outline', color: '#ffa502' },
+  { key: '2', label: 'Đã xác nhận', icon: 'checkmark-circle-outline', color: '#3742fa' },
+  { key: '3', label: 'Đang giao', icon: 'car-outline', color: '#2ed573' },
+  { key: '4', label: 'Hoàn thành', icon: 'trophy-outline', color: '#28a745' },
+  { key: '0', label: 'Đã hủy', icon: 'close-circle-outline', color: '#ff4757' },
+];
 
 export default function OrdersScreen() {
   const { user, isAuthenticated } = useAuth();
-  const [orders, setOrders] = useState<OrderHistory[]>([]);
+  const { cartSummary } = useCart();
+  const { addOrderStatusNotification } = useNotification();
+  const [allOrders, setAllOrders] = useState<OrderHistory[]>([]);
+  const [activeTab, setActiveTab] = useState<OrderStatus>('1');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -61,12 +82,11 @@ export default function OrdersScreen() {
       const orderHistory = await orderHistoryService.getOrderHistory(user._id);
       
       // Check for status changes
-      if (orders.length > 0) {
-        checkForStatusChanges(orders, orderHistory);
+      if (allOrders.length > 0) {
+        checkForStatusChanges(allOrders, orderHistory);
       }
       
-      setOrders(orderHistory);
-      setLastUpdateTime(new Date());
+      setAllOrders(orderHistory);
     } catch (error) {
       console.error('Error loading orders:', error);
       Alert.alert('Lỗi', 'Không thể tải lịch sử đơn hàng');
@@ -83,12 +103,11 @@ export default function OrdersScreen() {
       const orderHistory = await orderHistoryService.getOrderHistory(user._id);
       
       // Check for status changes
-      if (orders.length > 0) {
-        checkForStatusChanges(orders, orderHistory);
+      if (allOrders.length > 0) {
+        checkForStatusChanges(allOrders, orderHistory);
       }
       
-      setOrders(orderHistory);
-      setLastUpdateTime(new Date());
+      setAllOrders(orderHistory);
     } catch (error) {
       console.error('Auto refresh error:', error);
     } finally {
@@ -107,14 +126,7 @@ export default function OrdersScreen() {
   };
 
   const showStatusChangeNotification = (order: OrderHistory, oldStatus: string, newStatus: string) => {
-    const oldStatusText = orderHistoryService.getStatusText(oldStatus);
-    const newStatusText = orderHistoryService.getStatusText(newStatus);
-    
-    Alert.alert(
-      'Cập nhật trạng thái đơn hàng',
-      `Đơn hàng #${order._id.slice(-6)} đã được cập nhật từ "${oldStatusText}" thành "${newStatusText}"`,
-      [{ text: 'OK' }]
-    );
+    addOrderStatusNotification(order._id, oldStatus, newStatus);
   };
 
   const onRefresh = async () => {
@@ -136,7 +148,7 @@ export default function OrdersScreen() {
 
     Alert.alert(
       'Xác nhận hủy đơn hàng',
-      `Bạn có chắc chắn muốn hủy đơn hàng #${order._id.slice(-6)}?`,
+      `Bạn có chắc chắn muốn hủy đơn hàng này?`,
       [
         { text: 'Không', style: 'cancel' },
         {
@@ -161,19 +173,60 @@ export default function OrdersScreen() {
     router.push(`/order-detail/${orderId}`);
   };
 
-  const formatLastUpdateTime = () => {
-    const now = new Date();
-    const diffMs = now.getTime() - lastUpdateTime.getTime();
-    const diffSeconds = Math.floor(diffMs / 1000);
-    
-    if (diffSeconds < 60) {
-      return `${diffSeconds} giây trước`;
-    } else if (diffSeconds < 3600) {
-      return `${Math.floor(diffSeconds / 60)} phút trước`;
-    } else {
-      return `${Math.floor(diffSeconds / 3600)} giờ trước`;
-    }
+  // Filter orders by active tab status
+  const getFilteredOrders = () => {
+    return allOrders.filter(order => order.status === activeTab);
   };
+
+  // Get count for each tab
+  const getTabCount = (status: OrderStatus) => {
+    return allOrders.filter(order => order.status === status).length;
+  };
+
+  const renderTabHeader = () => (
+    <View style={styles.tabContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabScrollContainer}
+      >
+        {STATUS_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const count = getTabCount(tab.key);
+          
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tabItem,
+                { borderBottomColor: isActive ? tab.color : 'transparent' }
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <View style={styles.tabContent}>
+                <Ionicons 
+                  name={tab.icon as any} 
+                  size={24} 
+                  color={isActive ? tab.color : '#999'} 
+                />
+                <Text style={[
+                  styles.tabLabel,
+                  isActive && { color: tab.color, fontWeight: 'bold' }
+                ]}>
+                  {tab.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[styles.tabBadge, { backgroundColor: tab.color }]}>
+                    <Text style={styles.tabBadgeText}>{count}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 
   const renderOrderItem = ({ item }: { item: OrderHistory }) => (
     <View style={styles.orderItem}>
@@ -245,20 +298,31 @@ export default function OrdersScreen() {
     </View>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="receipt-outline" size={80} color="#ccc" />
-      <Text style={styles.emptyText}>Chưa có đơn hàng nào</Text>
-      <Text style={styles.emptySubtext}>Hãy đặt hàng để xem lịch sử đơn hàng tại đây</Text>
-      
-      <TouchableOpacity 
-        style={styles.shopButton}
-        onPress={() => router.push('/products')}
-      >
-        <Text style={styles.shopButtonText}>Mua sắm ngay</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderEmptyState = () => {
+    const currentTab = STATUS_TABS.find(tab => tab.key === activeTab);
+    
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name={currentTab?.icon as any} size={80} color="#ccc" />
+        <Text style={styles.emptyText}>Không có đơn hàng {currentTab?.label.toLowerCase()}</Text>
+        <Text style={styles.emptySubtext}>
+          {activeTab === '1' 
+            ? 'Hãy đặt hàng để xem đơn hàng đang xử lý tại đây'
+            : `Chưa có đơn hàng nào ở trạng thái ${currentTab?.label.toLowerCase()}`
+          }
+        </Text>
+        
+        {activeTab === '1' && (
+          <TouchableOpacity 
+            style={styles.shopButton}
+            onPress={() => router.push('/products')}
+          >
+            <Text style={styles.shopButtonText}>Mua sắm ngay</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const renderLoginRequired = () => (
     <View style={styles.emptyState}>
@@ -304,6 +368,8 @@ export default function OrdersScreen() {
     );
   }
 
+  const filteredOrders = getFilteredOrders();
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#fed700" />
@@ -311,33 +377,42 @@ export default function OrdersScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
-            <Text style={styles.orderCount}>({orders.length} đơn hàng)</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
+          
           <View style={styles.headerRight}>
             {autoRefreshing && (
-              <View style={styles.autoRefreshIndicator}>
-                <ActivityIndicator size="small" color="#666" />
-                <Text style={styles.autoRefreshText}>Đang cập nhật...</Text>
-              </View>
+              <ActivityIndicator size="small" color="#666" style={styles.refreshIndicator} />
             )}
             <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={() => loadOrders()}
-              disabled={loading || autoRefreshing}
+              style={styles.cartButton}
+              onPress={() => router.push('/cart')}
             >
-              <Ionicons name="refresh" size={20} color="#666" />
+              <Ionicons name="bag-outline" size={24} color="#333" />
+              {cartSummary?.totalItems > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
-        <Text style={styles.lastUpdateText}>
-          Cập nhật lần cuối: {formatLastUpdateTime()}
-        </Text>
       </View>
+
+      {/* Tab Header */}
+      {renderTabHeader()}
       
+      {/* Orders List */}
       <FlatList
-        data={orders}
+        data={filteredOrders}
         renderItem={renderOrderItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.ordersList}
@@ -370,17 +445,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+  },
+  headerContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-  },
-  orderCount: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    flex: 1,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -538,33 +614,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  autoRefreshIndicator: {
+  refreshIndicator: {
     marginRight: 8,
   },
-  autoRefreshText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  refreshButton: {
+  cartButton: {
     padding: 8,
   },
-  lastUpdateText: {
+  cartBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ff4757',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  tabContainer: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+    paddingVertical: 8,
+  },
+  tabScrollContainer: {
+    paddingHorizontal: 16,
+  },
+  tabItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 8,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    // Active border color is set dynamically
+  },
+  tabContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    minWidth: 80,
+    position: 'relative',
+  },
+  tabLabel: {
+    fontSize: 12,
     color: '#666',
-    fontSize: 14,
-    marginTop: 8,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ff4757',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    padding: 8,
   },
 }); 

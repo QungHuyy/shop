@@ -19,6 +19,8 @@ export default function RootLayout() {
               <Stack.Screen name="profile/edit" />
               <Stack.Screen name="profile/change-password" />
               <Stack.Screen name="cart/index" />
+              <Stack.Screen name="notifications/index" />
+              <Stack.Screen name="order-detail/[id]" />
             </Stack>
           </CartProvider>
         </AuthProvider>

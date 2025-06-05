@@ -9,25 +9,34 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface AppHeaderProps {
   showCart?: boolean;
   showCamera?: boolean;
   showSearch?: boolean;
+  showNotification?: boolean;
 }
 
 export default function AppHeader({ 
   showCart = true, 
   showCamera = true, 
-  showSearch = true 
+  showSearch = true,
+  showNotification = true
 }: AppHeaderProps) {
   const router = useRouter();
   const { cartSummary } = useCart();
+  const { summary } = useNotification();
 
   const handleCartPress = () => {
     console.log('Cart button pressed');
     // Navigate to cart tab
     router.push('/cart');
+  };
+
+  const handleNotificationPress = () => {
+    // @ts-ignore - Dynamic route will work at runtime
+    router.push('/notifications');
   };
 
   return (
@@ -57,6 +66,23 @@ export default function AppHeader({
               <Ionicons name="camera-outline" size={22} color="#333" />
             </TouchableOpacity>
           )}
+          
+          {showNotification && (
+            <TouchableOpacity 
+              style={styles.headerIcon}
+              onPress={handleNotificationPress}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#333" />
+              {summary?.unread > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {summary.unread > 99 ? '99+' : summary.unread}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+          
           {showCart && (
             <TouchableOpacity 
               style={styles.headerIcon}
