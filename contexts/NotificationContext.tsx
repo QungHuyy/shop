@@ -13,6 +13,8 @@ interface NotificationContextType {
   clearAll: () => Promise<void>;
   addOrderStatusNotification: (orderId: string, oldStatus: string, newStatus: string) => Promise<void>;
   clearNotifiedTransitions: () => Promise<void>;
+  showSuccess: (message: string) => Promise<void>;
+  showError: (message: string) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -127,6 +129,32 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   };
 
+  const showSuccess = async (message: string) => {
+    try {
+      await notificationService.addNotification({
+        type: 'system',
+        title: 'Thành công',
+        message: message
+      });
+      await refreshNotifications();
+    } catch (error) {
+      console.error('Error showing success notification:', error);
+    }
+  };
+
+  const showError = async (message: string) => {
+    try {
+      await notificationService.addNotification({
+        type: 'system',
+        title: 'Lỗi',
+        message: message
+      });
+      await refreshNotifications();
+    } catch (error) {
+      console.error('Error showing error notification:', error);
+    }
+  };
+
   const value: NotificationContextType = {
     notifications,
     summary,
@@ -137,7 +165,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     deleteNotification,
     clearAll,
     addOrderStatusNotification,
-    clearNotifiedTransitions
+    clearNotifiedTransitions,
+    showSuccess,
+    showError
   };
 
   return (

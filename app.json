@@ -33,6 +33,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ứng dụng cần quyền truy cập thư viện ảnh để tìm kiếm sản phẩm bằng hình ảnh.",
+          "cameraPermission": "Ứng dụng cần quyền truy cập camera để chụp ảnh tìm kiếm sản phẩm."
+        }
       ]
     ],
     "experiments": {

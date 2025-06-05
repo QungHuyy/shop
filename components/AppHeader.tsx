@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
 import { useNotification } from '@/contexts/NotificationContext';
+import imageSearchService from '@/services/imageSearchService';
 
 interface AppHeaderProps {
   showCart?: boolean;
@@ -39,6 +40,24 @@ export default function AppHeader({
     router.push('/notifications');
   };
 
+  const handleCameraPress = async () => {
+    try {
+      console.log('Camera button pressed - starting image search');
+      const imageUri = await imageSearchService.showImageSourceOptions();
+      
+      if (imageUri) {
+        console.log('Image selected:', imageUri);
+        // Navigate to image search screen with the selected image
+        router.push({
+          pathname: '/image-search',
+          params: { imageUri }
+        } as any);
+      }
+    } catch (error) {
+      console.error('Error in camera press:', error);
+    }
+  };
+
   return (
     <View style={styles.header}>
       <View style={styles.headerContent}>
@@ -62,7 +81,10 @@ export default function AppHeader({
         {/* Header icons */}
         <View style={styles.headerIcons}>
           {showCamera && (
-            <TouchableOpacity style={styles.headerIcon}>
+            <TouchableOpacity 
+              style={styles.headerIcon}
+              onPress={handleCameraPress}
+            >
               <Ionicons name="camera-outline" size={22} color="#333" />
             </TouchableOpacity>
           )}
