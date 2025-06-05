@@ -15,7 +15,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import chatbotService, { ChatMessage } from '../../services/chatbotService';
+
+interface UserInfo {
+  id: string;
+  name: string;
+  isGuest: boolean;
+}
 
 export default function ChatbotScreen() {
   const router = useRouter();
@@ -26,12 +33,40 @@ export default function ChatbotScreen() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
-  // Initialize chat with welcome message
+  // Load chat history and user info on component mount
   useEffect(() => {
-    const welcomeMessage = chatbotService.getWelcomeMessage();
-    setMessages([welcomeMessage]);
+    initializeChatbot();
   }, []);
+
+  // Listen for user authentication changes
+  useEffect(() => {
+    const checkUserChanges = async () => {
+      const currentUserInfo = await chatbotService.getUserInfo();
+      
+      // If user changed, reload chat history
+      if (userInfo && userInfo.id !== currentUserInfo.id) {
+        console.log(`👤 User changed from ${userInfo.id} to ${currentUserInfo.id}`);
+        await loadChatHistoryForUser(currentUserInfo.id);
+      }
+      
+      setUserInfo(currentUserInfo);
+    };
+
+    // Check for user changes every few seconds when app is active
+    const interval = setInterval(checkUserChanges, 3000);
+    
+    return () => clearInterval(interval);
+  }, [userInfo]);
+
+  // Auto-save messages whenever messages change
+  useEffect(() => {
+    if (messages.length > 0 && !isLoading && userInfo) {
+      chatbotService.autoSaveMessages(messages);
+    }
+  }, [messages, isLoading, userInfo]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -61,6 +96,46 @@ export default function ChatbotScreen() {
       return () => animation.stop();
     }
   }, [isTyping]);
+
+  const initializeChatbot = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get user info
+      const currentUserInfo = await chatbotService.getUserInfo();
+      setUserInfo(currentUserInfo);
+      
+      // Load chat history for current user
+      await loadChatHistoryForUser(currentUserInfo.id);
+    } catch (error) {
+      console.error('Error initializing chatbot:', error);
+      // Fallback to welcome message
+      const welcomeMessage = chatbotService.getWelcomeMessage();
+      setMessages([welcomeMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadChatHistoryForUser = async (userId: string) => {
+    try {
+      const savedMessages = await chatbotService.loadChatHistory(userId);
+      setMessages(savedMessages);
+      
+      // Don't show suggestions if there are previous conversations
+      if (savedMessages.length > 1) {
+        setShowSuggestions(false);
+      } else {
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Error loading chat history for user:', userId, error);
+      // Fallback to welcome message
+      const welcomeMessage = chatbotService.getWelcomeMessage(userId);
+      setMessages([welcomeMessage]);
+      setShowSuggestions(true);
+    }
+  };
 
   const sendMessage = async (text: string = inputText.trim()) => {
     if (!text) return;
@@ -106,21 +181,33 @@ export default function ChatbotScreen() {
 
   const clearChat = () => {
     Alert.alert(
-      'Xóa cuộc trò chuyện',
-      'Bạn có chắc muốn xóa toàn bộ cuộc trò chuyện?',
+      'Xóa lịch sử trò chuyện',
+      `Bạn có chắc muốn xóa toàn bộ lịch sử trò chuyện của ${userInfo?.isGuest ? 'khách' : userInfo?.name}? Thao tác này không thể hoàn tác.`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
           text: 'Xóa',
           style: 'destructive',
-          onPress: () => {
-            const welcomeMessage = chatbotService.getWelcomeMessage();
-            setMessages([welcomeMessage]);
-            setShowSuggestions(true);
+          onPress: async () => {
+            try {
+              await chatbotService.clearChatHistory(userInfo?.id);
+              const welcomeMessage = chatbotService.getWelcomeMessage(userInfo?.id);
+              setMessages([welcomeMessage]);
+              setShowSuggestions(true);
+              Alert.alert('Thành công', 'Đã xóa lịch sử trò chuyện');
+            } catch (error) {
+              console.error('Error clearing chat history:', error);
+              Alert.alert('Lỗi', 'Có lỗi xảy ra khi xóa lịch sử');
+            }
           },
         },
       ]
     );
+  };
+
+  const handleProductPress = (productId: string) => {
+    console.log('🛍️ Navigating to product:', productId);
+    router.push(`/products/${productId}` as any);
   };
 
   const formatTime = (date: Date) => {
@@ -128,6 +215,29 @@ export default function ChatbotScreen() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const renderProductChips = (productIds: string[]) => {
+    if (!productIds || productIds.length === 0) return null;
+
+    return (
+      <View style={styles.productChipsContainer}>
+        <Text style={styles.productChipsLabel}>📦 Sản phẩm được đề xuất:</Text>
+        <View style={styles.productChips}>
+          {productIds.map((productId, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.productChip}
+              onPress={() => handleProductPress(productId)}
+            >
+              <Ionicons name="bag-outline" size={14} color="#007bff" />
+              <Text style={styles.productChipText}>Xem sản phẩm {index + 1}</Text>
+              <Ionicons name="chevron-forward" size={12} color="#007bff" />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
   };
 
   const renderMessage = (message: ChatMessage, index: number) => {
@@ -148,44 +258,51 @@ export default function ChatbotScreen() {
           </View>
         )}
         
-        <View
-          style={[
-            styles.messageBubble,
-            isUser ? styles.userBubble : styles.botBubble,
-            isTyping && styles.typingBubble,
-          ]}
-        >
-          {isTyping ? (
-            <View style={styles.typingIndicator}>
-              <Animated.View
-                style={[
-                  styles.typingDot,
-                  {
-                    opacity: typingAnimationValue,
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.typingDot,
-                  {
-                    opacity: typingAnimationValue,
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.typingDot,
-                  {
-                    opacity: typingAnimationValue,
-                  },
-                ]}
-              />
-            </View>
-          ) : (
-            <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-              {message.text}
-            </Text>
+        <View style={styles.messageWrapper}>
+          <View
+            style={[
+              styles.messageBubble,
+              isUser ? styles.userBubble : styles.botBubble,
+              isTyping && styles.typingBubble,
+            ]}
+          >
+            {isTyping ? (
+              <View style={styles.typingIndicator}>
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimationValue,
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimationValue,
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimationValue,
+                    },
+                  ]}
+                />
+              </View>
+            ) : (
+              <Text style={[styles.messageText, isUser && styles.userMessageText]}>
+                {message.text}
+              </Text>
+            )}
+          </View>
+          
+          {/* Product chips for bot messages */}
+          {!isUser && !isTyping && message.productIds && (
+            renderProductChips(message.productIds)
           )}
         </View>
         
@@ -209,7 +326,7 @@ export default function ChatbotScreen() {
 
     return (
       <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsTitle}>Gợi ý câu hỏi:</Text>
+        <Text style={styles.suggestionsTitle}>💡 Gợi ý câu hỏi:</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -229,6 +346,38 @@ export default function ChatbotScreen() {
     );
   };
 
+  const renderUserStatus = () => {
+    if (!userInfo) return null;
+
+    return (
+      <View style={[styles.userStatus, userInfo.isGuest && styles.userStatusGuest]}>
+        <Ionicons 
+          name={userInfo.isGuest ? "person-outline" : "person"} 
+          size={12} 
+          color={userInfo.isGuest ? "#999" : "#007bff"} 
+        />
+        <Text style={[styles.userStatusText, userInfo.isGuest && styles.userStatusTextGuest]}>
+          {userInfo.isGuest ? 'Khách' : userInfo.name}
+        </Text>
+        {!userInfo.isGuest && (
+          <View style={styles.userStatusDot} />
+        )}
+      </View>
+    );
+  };
+
+  // Show loading indicator while loading chat history
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.loadingText}>Đang tải lịch sử trò chuyện...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -238,12 +387,17 @@ export default function ChatbotScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Tư vấn viên AI</Text>
-          <Text style={styles.headerSubtitle}>Luôn sẵn sàng hỗ trợ bạn</Text>
+          <Text style={styles.headerTitle}>Tư vấn viên AI 🤖</Text>
+          <View style={styles.headerSubtitleContainer}>
+            {renderUserStatus()}
+            <Text style={styles.headerSubtitle}>
+              {messages.length > 1 ? `${messages.filter(m => !m.typing).length} tin nhắn` : 'Sẵn sàng tư vấn'}
+            </Text>
+          </View>
         </View>
         
         <TouchableOpacity onPress={clearChat} style={styles.clearButton}>
-          <Ionicons name="refresh" size={24} color="#666" />
+          <Ionicons name="trash-outline" size={22} color="#ff4757" />
         </TouchableOpacity>
       </View>
 
@@ -270,7 +424,7 @@ export default function ChatbotScreen() {
             style={styles.textInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Nhập câu hỏi về sản phẩm..."
+            placeholder="Hỏi về sản phẩm cụ thể..."
             placeholderTextColor="#999"
             multiline
             maxLength={500}
@@ -302,6 +456,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,10 +488,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  headerSubtitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   headerSubtitle: {
     fontSize: 12,
     color: '#666',
-    marginTop: 2,
+    marginLeft: 8,
+  },
+  userStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  userStatusGuest: {
+    backgroundColor: '#f5f5f5',
+  },
+  userStatusText: {
+    fontSize: 10,
+    color: '#007bff',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  userStatusTextGuest: {
+    color: '#999',
+  },
+  userStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4caf50',
+    marginLeft: 4,
   },
   clearButton: {
     padding: 4,
@@ -358,6 +554,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+    alignSelf: 'flex-start',
   },
   userAvatar: {
     width: 32,
@@ -367,9 +564,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
+    alignSelf: 'flex-end',
+  },
+  messageWrapper: {
+    maxWidth: '75%',
   },
   messageBubble: {
-    maxWidth: '75%',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
@@ -411,6 +611,38 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#666',
     marginHorizontal: 2,
+  },
+  productChipsContainer: {
+    marginTop: 8,
+  },
+  productChipsLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  productChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  productChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8ff',
+    borderColor: '#007bff',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  productChipText: {
+    fontSize: 12,
+    color: '#007bff',
+    fontWeight: '500',
+    marginHorizontal: 4,
   },
   suggestionsContainer: {
     backgroundColor: '#fff',
