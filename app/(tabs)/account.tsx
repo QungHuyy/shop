@@ -44,6 +44,12 @@ export default function AccountScreen() {
       action: () => router.push('/profile/change-password'),
     },
     {
+      icon: 'chatbubble-ellipses-outline',
+      title: 'Tư vấn viên AI',
+      subtitle: 'Hỗ trợ tìm kiếm và tư vấn sản phẩm',
+      action: () => router.push('/chatbot' as any),
+    },
+    {
       icon: 'help-circle-outline',
       title: 'Hỗ trợ',
       subtitle: 'Liên hệ với chúng tôi',

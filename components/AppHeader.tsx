@@ -17,13 +17,15 @@ interface AppHeaderProps {
   showCamera?: boolean;
   showSearch?: boolean;
   showNotification?: boolean;
+  showChatbot?: boolean;
 }
 
 export default function AppHeader({ 
   showCart = true, 
   showCamera = true, 
   showSearch = true,
-  showNotification = true
+  showNotification = true,
+  showChatbot = true
 }: AppHeaderProps) {
   const router = useRouter();
   const { cartSummary } = useCart();
@@ -58,6 +60,11 @@ export default function AppHeader({
     }
   };
 
+  const handleChatbotPress = () => {
+    console.log('Chatbot button pressed');
+    router.push('/chatbot' as any);
+  };
+
   return (
     <View style={styles.header}>
       <View style={styles.headerContent}>
@@ -86,6 +93,15 @@ export default function AppHeader({
               onPress={handleCameraPress}
             >
               <Ionicons name="camera-outline" size={22} color="#333" />
+            </TouchableOpacity>
+          )}
+          
+          {showChatbot && (
+            <TouchableOpacity 
+              style={styles.headerIcon}
+              onPress={handleChatbotPress}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={22} color="#333" />
             </TouchableOpacity>
           )}
           
