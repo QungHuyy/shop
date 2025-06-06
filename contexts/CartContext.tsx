@@ -17,6 +17,7 @@ interface CartContextType {
   refreshCart: () => Promise<void>;
   applyCoupon: (code: string, userId: string) => Promise<{success: boolean; message: string}>;
   removeCoupon: () => Promise<void>;
+  isCouponApplied: () => boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -166,6 +167,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Calculate discount
         calculateDiscount(cartSummary.totalPrice);
         
+        // Buộc cập nhật giỏ hàng ngay lập tức
+        await refreshCart();
+        
         return { success: true, message: "Áp dụng mã giảm giá thành công" };
       } else {
         // Handle various error messages
@@ -194,6 +198,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFinalPrice(cartSummary.totalPrice);
     await couponService.removeCoupon();
   };
+  
+  // Kiểm tra xem mã giảm giá đã được áp dụng chưa
+  const isCouponApplied = (): boolean => {
+    return coupon !== null && couponId !== '';
+  };
 
   const value = {
     cartItems,
@@ -210,6 +219,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshCart,
     applyCoupon,
     removeCoupon,
+    isCouponApplied,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

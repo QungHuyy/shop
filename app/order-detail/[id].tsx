@@ -141,12 +141,21 @@ export default function OrderDetailScreen() {
           text: 'Hủy đơn hàng',
           style: 'destructive',
           onPress: async () => {
-            const success = await orderHistoryService.cancelOrder(order._id);
-            if (success) {
-              Alert.alert('Thành công', 'Đơn hàng đã được hủy');
-              loadOrderDetail(); // Reload order
-            } else {
-              Alert.alert('Lỗi', 'Không thể hủy đơn hàng');
+            try {
+              setLoading(true);
+              const success = await orderHistoryService.cancelOrder(order._id);
+              setLoading(false);
+              
+              if (success) {
+                Alert.alert('Thành công', 'Đơn hàng đã được hủy');
+                setTimeout(() => loadOrderDetail(), 500); // Reload order sau 0.5 giây
+              } else {
+                Alert.alert('Lỗi', 'Không thể hủy đơn hàng');
+              }
+            } catch (error) {
+              setLoading(false);
+              console.error('Error in handleCancelOrder:', error);
+              Alert.alert('Lỗi', 'Đã xảy ra lỗi khi hủy đơn hàng');
             }
           }
         }

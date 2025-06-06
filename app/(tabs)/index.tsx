@@ -161,7 +161,8 @@ export default function HomeScreen() {
         router.push('/products?filter=sale');
         break;
       case 'voucher':
-        Alert.alert('Voucher', 'Tính năng voucher đang được phát triển');
+        console.log('▶️ Navigating to vouchers');
+        router.push({ pathname: '/vouchers' } as any);
         break;
       case 'new':
         console.log('▶️ Navigating to new products');

@@ -263,9 +263,12 @@ export default function Home() {
               <Text style={styles.quickActionIcon}>⚡</Text>
               <Text style={styles.quickActionText}>Flash Sale</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity 
+              style={styles.quickActionItem}
+              onPress={() => router.push({ pathname: '/vouchers' } as any)}
+            >
               <Text style={styles.quickActionIcon}>🎁</Text>
-              <Text style={styles.quickActionText}>Voucher</Text>
+              <Text style={styles.quickActionText}>Mã giảm giá</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionItem}>
               <Text style={styles.quickActionIcon}>🆕</Text>

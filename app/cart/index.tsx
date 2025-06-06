@@ -32,7 +32,8 @@ export default function CartScreen() {
     clearCart, 
     refreshCart,
     applyCoupon,
-    removeCoupon
+    removeCoupon,
+    isCouponApplied
   } = useCart();
   const { isAuthenticated, user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);

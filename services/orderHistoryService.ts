@@ -122,6 +122,9 @@ const orderHistoryService = {
   // Cancel order (for status 1 and 2 only)
   cancelOrder: async (orderId: string): Promise<boolean> => {
     try {
+      // Lấy thông tin đơn hàng trước khi hủy để kiểm tra mã giảm giá
+      const orderDetail = await orderHistoryService.getOrderDetail(orderId);
+      
       const response = await fetch(`${API_BASE_URL}/api/admin/Order/cancelorder?id=${orderId}`, {
         method: 'PATCH',
         headers: {
@@ -130,6 +133,7 @@ const orderHistoryService = {
       });
 
       if (!response.ok) {
+        console.error('Cancel order response:', await response.text());
         throw new Error('Failed to cancel order');
       }
 
@@ -266,8 +270,45 @@ const orderHistoryService = {
   // Kiểm tra xem người dùng đã sử dụng một mã giảm giá cụ thể chưa
   hasUsedCoupon: async (userId: string, couponId: string): Promise<boolean> => {
     try {
-      const usedCoupons = await orderHistoryService.checkUsedCoupons(userId);
-      return usedCoupons.includes(couponId);
+      console.log(`Checking if user ${userId} has used coupon ${couponId}`);
+      
+      // Gọi API kiểm tra trực tiếp
+      const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/checking?code=DUMMY&id_user=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
+        return false;
+      }
+      
+      // Lấy tất cả đơn hàng của người dùng
+      const orders = await orderHistoryService.getUserOrders(userId);
+      
+      // Kiểm tra xem có đơn hàng nào đã hoàn thành (status = 4) sử dụng mã giảm giá này không
+      const completedOrderWithCoupon = orders.find(order => 
+        order.id_coupon === couponId && order.status === '4'
+      );
+      
+      // Nếu có đơn hàng hoàn thành với mã giảm giá này, trả về true
+      if (completedOrderWithCoupon) {
+        console.log(`Found completed order with coupon ${couponId}`);
+        return true;
+      }
+      
+      // Kiểm tra xem có đơn hàng nào đang xử lý (status = 1,2,3) sử dụng mã giảm giá này không
+      const pendingOrderWithCoupon = orders.find(order => 
+        order.id_coupon === couponId && 
+        ['1', '2', '3'].includes(order.status)
+      );
+      
+      // Nếu có đơn hàng đang xử lý với mã giảm giá này, trả về true
+      const result = !!pendingOrderWithCoupon;
+      console.log(`User ${userId} ${result ? 'has' : 'has not'} used coupon ${couponId}`);
+      return result;
     } catch (error) {
       console.error('Error checking if coupon was used:', error);
       return false;

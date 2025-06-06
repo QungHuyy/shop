@@ -15,7 +15,9 @@ const couponService = {
   // Check coupon validity
   checkCoupon: async (code: string, userId: string): Promise<any> => {
     try {
-      // Trước tiên, kiểm tra xem coupon có tồn tại không
+      console.log(`Checking coupon: ${code} for user: ${userId}`);
+      
+      // Gọi API kiểm tra mã giảm giá
       const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/checking?code=${code}&id_user=${userId}`, {
         method: 'GET',
         headers: {
@@ -24,21 +26,14 @@ const couponService = {
       });
 
       if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
         throw new Error('Failed to check coupon');
       }
 
       const result = await response.json();
+      console.log('API coupon check result:', result);
       
-      // Nếu coupon hợp lệ, kiểm tra thêm trong lịch sử đơn hàng
-      if (result.msg === "Thành công" && result.coupon) {
-        // Kiểm tra lịch sử xem người dùng đã từng sử dụng coupon này chưa
-        const hasUsed = await orderHistoryService.hasUsedCoupon(userId, result.coupon._id);
-        if (hasUsed) {
-          // Nếu đã sử dụng, ghi đè kết quả
-          return { msg: "Bạn đã sử dụng mã này rồi" };
-        }
-      }
-
+      // API đã xử lý việc kiểm tra đơn hàng hoàn thành hoặc đang xử lý
       return result;
     } catch (error) {
       console.error('Error checking coupon:', error);
@@ -49,6 +44,8 @@ const couponService = {
   // Update coupon (decrease count)
   updateCoupon: async (couponId: string): Promise<any> => {
     try {
+      console.log(`Updating coupon: ${couponId}`);
+      
       const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/${couponId}`, {
         method: 'PATCH',
         headers: {
@@ -57,12 +54,45 @@ const couponService = {
       });
 
       if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
         throw new Error('Failed to update coupon');
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('Update coupon result:', result);
+      return result;
     } catch (error) {
       console.error('Error updating coupon:', error);
+      throw error;
+    }
+  },
+  
+  // Restore coupon when order is canceled
+  restoreCoupon: async (couponId: string, orderId: string): Promise<any> => {
+    try {
+      console.log(`Restoring coupon: ${couponId} for order: ${orderId}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/coupon/restore`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id_coupon: couponId,
+          id_order: orderId
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
+        throw new Error('Failed to restore coupon');
+      }
+
+      const result = await response.json();
+      console.log('Restore coupon result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error restoring coupon:', error);
       throw error;
     }
   },
@@ -70,6 +100,7 @@ const couponService = {
   // Save coupon to local storage
   saveCoupon: async (coupon: Coupon): Promise<void> => {
     try {
+      console.log(`Saving coupon to storage: ${coupon._id}`);
       await AsyncStorage.setItem('id_coupon', coupon._id);
       await AsyncStorage.setItem('coupon', JSON.stringify(coupon));
     } catch (error) {
@@ -84,6 +115,7 @@ const couponService = {
       const id = await AsyncStorage.getItem('id_coupon');
       const couponString = await AsyncStorage.getItem('coupon');
       
+      console.log(`Retrieved coupon from storage: ${id || 'none'}`);
       return {
         id: id || '',
         coupon: couponString ? JSON.parse(couponString) : null
@@ -97,6 +129,7 @@ const couponService = {
   // Remove coupon from local storage
   removeCoupon: async (): Promise<void> => {
     try {
+      console.log('Removing coupon from storage');
       await AsyncStorage.removeItem('id_coupon');
       await AsyncStorage.removeItem('coupon');
     } catch (error) {
