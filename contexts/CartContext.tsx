@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import cartService, { CartItem, CartSummary } from '../services/cartService';
 import couponService, { Coupon } from '../services/couponService';
+import { useAuth } from './AuthContext';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -31,6 +32,7 @@ export const useCart = () => {
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartSummary, setCartSummary] = useState<CartSummary>({
     items: [],
@@ -50,7 +52,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await loadSavedCoupon();
     };
     init();
-  }, []);
+  }, [isAuthenticated]); // Re-initialize when authentication status changes
 
   const refreshCart = async () => {
     try {
@@ -151,6 +153,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const applyCoupon = async (code: string, userId: string): Promise<{success: boolean; message: string}> => {
     try {
+      // Verify user is authenticated
+      if (!isAuthenticated || !user) {
+        return { success: false, message: "Vui lòng đăng nhập để sử dụng mã giảm giá" };
+      }
+      
       // Kiểm tra nếu người dùng đã có mã giảm giá đang áp dụng
       if (coupon) {
         return { success: false, message: "Bạn đã áp dụng một mã giảm giá. Vui lòng xóa mã hiện tại trước khi áp dụng mã mới." };

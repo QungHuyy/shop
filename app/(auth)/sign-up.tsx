@@ -14,6 +14,7 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import authService from '../../services/authService';
 import { useNotification } from '../../contexts/NotificationContext';
+import { Ionicons } from '@expo/vector-icons';
 
 interface SignUpFormValues {
   fullname: string;
@@ -76,6 +77,22 @@ export default function SignUp() {
     }
   };
 
+  // Hàm xử lý nút back an toàn
+  const handleBackPress = () => {
+    try {
+      // Kiểm tra xem có thể quay lại không
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        // Nếu không thể quay lại, chuyển về trang chính
+        router.replace('/');
+      }
+    } catch (error) {
+      console.log('Navigation error:', error);
+      router.replace('/');
+    }
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoidingView}
@@ -89,6 +106,12 @@ export default function SignUp() {
       >
         <View style={styles.container}>
           <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={handleBackPress}
+            >
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
             <Text style={styles.title}>Đăng ký</Text>
             <Text style={styles.subtitle}>Tạo tài khoản mới để bắt đầu mua sắm</Text>
           </View>
@@ -280,8 +303,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 30,
+    marginBottom: 40,
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 10,
   },
   title: {
     fontSize: 28,

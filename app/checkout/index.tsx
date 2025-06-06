@@ -21,6 +21,8 @@ export default function CheckoutScreen() {
   const { cartItems, cartSummary, coupon, couponId, discount, finalPrice, clearCart, removeCoupon } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  
+  // Middleware đã xử lý chuyển hướng nếu chưa đăng nhập
 
   const [formData, setFormData] = useState<OrderFormData>({
     fullname: user?.fullname || '',

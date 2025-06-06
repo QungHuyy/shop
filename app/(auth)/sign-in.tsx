@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { Ionicons } from '@expo/vector-icons';
 
 interface SignInFormValues {
   username: string;
@@ -21,9 +22,34 @@ interface SignInFormValues {
 }
 
 export default function SignIn() {
-  const { signIn } = useAuth();
+  const { signIn, isAuthenticated } = useAuth();
   const { showSuccess, showError } = useNotification();
   const [error, setError] = useState<string>('');
+  const params = useLocalSearchParams<{ redirect?: string }>();
+  
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectPath = params.redirect || '/';
+      router.replace(redirectPath as any);
+    }
+  }, [isAuthenticated]);
+
+  // Hàm xử lý nút back an toàn
+  const handleBackPress = () => {
+    try {
+      // Kiểm tra xem có thể quay lại không
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        // Nếu không thể quay lại, chuyển về trang chính
+        router.replace('/');
+      }
+    } catch (error) {
+      console.log('Navigation error:', error);
+      router.replace('/');
+    }
+  };
 
   const validationSchema = Yup.object({
     username: Yup.string()
@@ -40,9 +66,10 @@ export default function SignIn() {
       await signIn(values.username, values.password);
       showSuccess('Đăng nhập thành công! Chào mừng bạn đến với ứng dụng.');
       
-      // Redirect về trang chủ sau khi đăng nhập thành công
+      // Redirect to the original page or home
+      const redirectPath = params.redirect || '/';
       setTimeout(() => {
-        router.replace('/');
+        router.replace(redirectPath as any);
       }, 1000);
       
     } catch (err: any) {
@@ -68,6 +95,12 @@ export default function SignIn() {
       >
         <View style={styles.container}>
           <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={handleBackPress}
+            >
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
             <Text style={styles.title}>Đăng nhập</Text>
             <Text style={styles.subtitle}>Chào mừng bạn quay trở lại!</Text>
           </View>
@@ -164,6 +197,13 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 40,
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 10,
   },
   title: {
     fontSize: 28,

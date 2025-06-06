@@ -12,6 +12,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,10 +36,12 @@ export default function CartScreen() {
     removeCoupon,
     isCouponApplied
   } = useCart();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  
+  // Middleware đã xử lý chuyển hướng nếu chưa đăng nhập
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -122,10 +125,13 @@ export default function CartScreen() {
     if (!isAuthenticated) {
       Alert.alert(
         'Yêu cầu đăng nhập',
-        'Vui lòng đăng nhập để tiếp tục thanh toán',
+        'Bạn cần đăng nhập để tiếp tục thanh toán',
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng nhập', onPress: () => router.push('/sign-in') }
+          { text: 'Tiếp tục không đăng nhập', style: 'cancel' },
+          { 
+            text: 'Đăng nhập', 
+            onPress: () => router.push('/(auth)/sign-in')
+          }
         ]
       );
       return;
@@ -137,18 +143,20 @@ export default function CartScreen() {
     }
 
     // Navigate to checkout page
-    // @ts-ignore - Route will work at runtime
-    router.push('/checkout/');
+    router.push('/checkout/' as any);
   };
   
   const handleApplyCoupon = async () => {
     if (!isAuthenticated) {
       Alert.alert(
         'Yêu cầu đăng nhập',
-        'Vui lòng đăng nhập để sử dụng mã giảm giá',
+        'Bạn cần đăng nhập để sử dụng mã giảm giá',
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng nhập', onPress: () => router.push('/sign-in') }
+          { text: 'Tiếp tục không đăng nhập', style: 'cancel' },
+          { 
+            text: 'Đăng nhập', 
+            onPress: () => router.push('/(auth)/sign-in')
+          }
         ]
       );
       return;
@@ -251,6 +259,22 @@ export default function CartScreen() {
     </View>
   );
 
+  // Hàm xử lý nút back an toàn
+  const handleBackPress = () => {
+    try {
+      // Kiểm tra xem có thể quay lại không
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        // Nếu không thể quay lại, chuyển về trang chính
+        router.replace('/');
+      }
+    } catch (error) {
+      console.log('Navigation error:', error);
+      router.replace('/');
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -263,9 +287,14 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBackPress}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Giỏ hàng ({cartSummary.totalItems})</Text>

@@ -12,6 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import authService from '../../services/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface User {
   _id?: string;
@@ -23,25 +25,44 @@ interface User {
 export default function AccountScreen() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const { signOut, user: authUser, isAuthenticated } = useAuth();
 
   const menuItems = [
     {
       icon: 'person-outline',
       title: 'Thông tin cá nhân',
       subtitle: 'Quản lý thông tin tài khoản',
-      action: () => router.push('/profile/view'),
+      action: () => {
+        if (!isAuthenticated) {
+          showAuthAlert(() => router.push('/profile/view'));
+          return;
+        }
+        router.push('/profile/view');
+      },
     },
     {
       icon: 'create-outline', 
       title: 'Chỉnh sửa hồ sơ',
       subtitle: 'Cập nhật thông tin cá nhân',
-      action: () => router.push('/profile/edit'),
+      action: () => {
+        if (!isAuthenticated) {
+          showAuthAlert(() => router.push('/profile/edit'));
+          return;
+        }
+        router.push('/profile/edit');
+      },
     },
     {
       icon: 'lock-closed-outline',
       title: 'Đổi mật khẩu',
       subtitle: 'Thay đổi mật khẩu đăng nhập',
-      action: () => router.push('/profile/change-password'),
+      action: () => {
+        if (!isAuthenticated) {
+          showAuthAlert(() => router.push('/profile/change-password'));
+          return;
+        }
+        router.push('/profile/change-password');
+      },
     },
     {
       icon: 'chatbubble-ellipses-outline',
@@ -64,19 +85,12 @@ export default function AccountScreen() {
   ];
 
   useEffect(() => {
-    checkUserLoggedIn();
-  }, []);
-
-  const checkUserLoggedIn = async () => {
-    try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
-    } catch (error) {
-      console.error('Lỗi khi kiểm tra đăng nhập:', error);
+    if (authUser) {
+      setUser(authUser);
+    } else {
+      setUser(null);
     }
-  };
+  }, [authUser, isAuthenticated]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -88,9 +102,11 @@ export default function AccountScreen() {
           text: 'Đăng xuất',
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem('user');
+              await signOut();
               setUser(null);
-              Alert.alert('Thành công', 'Đã đăng xuất thành công!');
+              Alert.alert('Thành công', 'Đã đăng xuất thành công!', [
+                { text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }
+              ]);
             } catch (error) {
               console.error('Lỗi khi đăng xuất:', error);
               Alert.alert('Lỗi', 'Có lỗi xảy ra khi đăng xuất');
@@ -102,7 +118,40 @@ export default function AccountScreen() {
   };
 
   const handleLogin = () => {
-    router.push('/(auth)/sign-in');
+    Alert.alert(
+      'Đăng nhập',
+      'Bạn muốn đăng nhập vào tài khoản của mình?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Đăng nhập', 
+          onPress: () => {
+            try {
+              router.push('/(auth)/sign-in');
+            } catch (error) {
+              console.log('Navigation error:', error);
+              // Fallback nếu có lỗi
+              router.replace('/(auth)/sign-in');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Helper function to show authentication alert
+  const showAuthAlert = (onLogin: () => void) => {
+    Alert.alert(
+      'Yêu cầu đăng nhập',
+      'Bạn cần đăng nhập để sử dụng tính năng này',
+      [
+        { text: 'Tiếp tục không đăng nhập', style: 'cancel' },
+        { 
+          text: 'Đăng nhập', 
+          onPress: () => router.push('/(auth)/sign-in')
+        }
+      ]
+    );
   };
 
   return (

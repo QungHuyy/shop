@@ -59,6 +59,8 @@ const orderHistoryService = {
   // Get order history by user ID
   getOrderHistory: async (userId: string): Promise<OrderHistory[]> => {
     try {
+      console.log(`Fetching order history for user ${userId}`);
+      
       const response = await fetch(`${API_BASE_URL}/api/Payment/order/${userId}`, {
         method: 'GET',
         headers: {
@@ -67,10 +69,27 @@ const orderHistoryService = {
       });
 
       if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
         throw new Error('Failed to get order history');
       }
 
-      return await response.json();
+      const orders = await response.json();
+      console.log(`Received ${orders.length} orders from API`);
+      
+      // Đảm bảo đơn hàng đã hủy (status = 0 hoặc 5) được hiển thị đúng
+      const processedOrders = orders.map((order: OrderHistory) => {
+        // Đảm bảo status là string
+        const orderCopy = {...order};
+        if (orderCopy.status === '5') {
+          orderCopy.status = '0';
+        }
+        return orderCopy;
+      });
+      
+      console.log(`Processed ${processedOrders.length} orders for display`);
+      console.log('Order statuses:', processedOrders.map((o: OrderHistory) => o.status));
+      
+      return processedOrders;
     } catch (error) {
       console.error('Error getting order history:', error);
       throw error;

@@ -160,6 +160,8 @@ const authService = {
   signOut: async (): Promise<void> => {
     try {
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('token');
+      console.log('User logged out successfully, all data cleared from AsyncStorage');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
     }

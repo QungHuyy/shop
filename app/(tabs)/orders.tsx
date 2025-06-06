@@ -175,12 +175,32 @@ export default function OrdersScreen() {
 
   // Filter orders by active tab status
   const getFilteredOrders = () => {
-    return allOrders.filter(order => order.status === activeTab);
+    console.log(`Filtering orders by status: ${activeTab}`);
+    console.log(`All orders statuses:`, allOrders.map(o => o.status));
+    const filtered = allOrders.filter(order => order.status === activeTab);
+    console.log(`Found ${filtered.length} orders with status ${activeTab}`);
+    return filtered;
   };
 
   // Get count for each tab
   const getTabCount = (status: OrderStatus) => {
     return allOrders.filter(order => order.status === status).length;
+  };
+
+  // Hàm xử lý nút back an toàn
+  const handleBackPress = () => {
+    try {
+      // Kiểm tra xem có thể quay lại không
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        // Nếu không thể quay lại, chuyển về trang chính
+        router.replace('/');
+      }
+    } catch (error) {
+      console.log('Navigation error:', error);
+      router.replace('/');
+    }
   };
 
   const renderTabHeader = () => (
@@ -327,12 +347,24 @@ export default function OrdersScreen() {
   const renderLoginRequired = () => (
     <View style={styles.emptyState}>
       <Ionicons name="log-in-outline" size={80} color="#ccc" />
-      <Text style={styles.emptyText}>Vui lòng đăng nhập</Text>
+      <Text style={styles.emptyText}>Chưa đăng nhập</Text>
       <Text style={styles.emptySubtext}>Đăng nhập để xem lịch sử đơn hàng của bạn</Text>
       
       <TouchableOpacity 
         style={styles.shopButton}
-        onPress={() => router.push('/(auth)/sign-in')}
+        onPress={() => {
+          Alert.alert(
+            'Yêu cầu đăng nhập',
+            'Bạn cần đăng nhập để xem đơn hàng của mình',
+            [
+              { text: 'Tiếp tục không đăng nhập', style: 'cancel' },
+              { 
+                text: 'Đăng nhập', 
+                onPress: () => router.push('/(auth)/sign-in')
+              }
+            ]
+          );
+        }}
       >
         <Text style={styles.shopButtonText}>Đăng nhập</Text>
       </TouchableOpacity>
@@ -379,7 +411,7 @@ export default function OrdersScreen() {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={handleBackPress}
           >
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
