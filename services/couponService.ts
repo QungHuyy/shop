@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import orderHistoryService from './orderHistoryService';
 
 const API_BASE_URL = 'http://192.168.1.45:8000';
 
@@ -14,6 +15,7 @@ const couponService = {
   // Check coupon validity
   checkCoupon: async (code: string, userId: string): Promise<any> => {
     try {
+      // Trước tiên, kiểm tra xem coupon có tồn tại không
       const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/checking?code=${code}&id_user=${userId}`, {
         method: 'GET',
         headers: {
@@ -25,7 +27,19 @@ const couponService = {
         throw new Error('Failed to check coupon');
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      // Nếu coupon hợp lệ, kiểm tra thêm trong lịch sử đơn hàng
+      if (result.msg === "Thành công" && result.coupon) {
+        // Kiểm tra lịch sử xem người dùng đã từng sử dụng coupon này chưa
+        const hasUsed = await orderHistoryService.hasUsedCoupon(userId, result.coupon._id);
+        if (hasUsed) {
+          // Nếu đã sử dụng, ghi đè kết quả
+          return { msg: "Bạn đã sử dụng mã này rồi" };
+        }
+      }
+
+      return result;
     } catch (error) {
       console.error('Error checking coupon:', error);
       throw error;

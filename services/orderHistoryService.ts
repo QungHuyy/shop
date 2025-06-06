@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_BASE_URL = 'http://192.168.1.45:8000';
 
 export interface OrderHistory {
@@ -221,6 +223,56 @@ const orderHistoryService = {
       default: return 'Đơn hàng đã bị hủy';
     }
   },
+
+  // Lấy lịch sử đơn hàng của người dùng
+  getUserOrders: async (userId: string): Promise<OrderHistory[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/Payment/order/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch order history');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching order history:', error);
+      return [];
+    }
+  },
+
+  // Kiểm tra xem người dùng đã từng sử dụng mã giảm giá nào chưa
+  checkUsedCoupons: async (userId: string): Promise<string[]> => {
+    try {
+      const orders = await orderHistoryService.getUserOrders(userId);
+      
+      // Lọc ra các id_coupon không rỗng
+      const usedCouponIds = orders
+        .filter(order => order.id_coupon && order.id_coupon.trim() !== '')
+        .map(order => order.id_coupon);
+      
+      // Loại bỏ các id trùng lặp
+      return [...new Set(usedCouponIds)];
+    } catch (error) {
+      console.error('Error checking used coupons:', error);
+      return [];
+    }
+  },
+
+  // Kiểm tra xem người dùng đã sử dụng một mã giảm giá cụ thể chưa
+  hasUsedCoupon: async (userId: string, couponId: string): Promise<boolean> => {
+    try {
+      const usedCoupons = await orderHistoryService.checkUsedCoupons(userId);
+      return usedCoupons.includes(couponId);
+    } catch (error) {
+      console.error('Error checking if coupon was used:', error);
+      return false;
+    }
+  }
 };
 
 export default orderHistoryService; 

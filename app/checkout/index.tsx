@@ -98,15 +98,20 @@ export default function CheckoutScreen() {
       );
 
       if (success) {
-        // If coupon was used, update it on the server
-        if (couponId) {
-          try {
-            await couponService.updateCoupon(couponId);
-          } catch (error) {
-            console.error('Error updating coupon:', error);
-            // Continue with order success even if coupon update fails
+              // If coupon was used, update it on the server
+      if (couponId) {
+        try {
+          // Gọi API để giảm số lượng coupon và đánh dấu rằng người dùng đã sử dụng
+          const couponResponse = await couponService.updateCoupon(couponId);
+          if (!couponResponse || couponResponse.msg !== "Thanh Cong") {
+            console.warn('Coupon update response was not successful:', couponResponse);
+            // Vẫn tiếp tục đặt hàng thành công ngay cả khi cập nhật coupon thất bại
           }
+        } catch (error) {
+          console.error('Error updating coupon:', error);
+          // Continue with order success even if coupon update fails
         }
+      }
         
         // Clear cart and coupon after successful order
         await clearCart();

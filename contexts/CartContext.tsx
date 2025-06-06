@@ -150,6 +150,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const applyCoupon = async (code: string, userId: string): Promise<{success: boolean; message: string}> => {
     try {
+      // Kiểm tra nếu người dùng đã có mã giảm giá đang áp dụng
+      if (coupon) {
+        return { success: false, message: "Bạn đã áp dụng một mã giảm giá. Vui lòng xóa mã hiện tại trước khi áp dụng mã mới." };
+      }
+
       const response = await couponService.checkCoupon(code, userId);
       
       if (response.msg === "Thành công" && response.coupon) {
@@ -169,7 +174,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (response.msg === "Không tìm thấy") {
           errorMessage = "Mã giảm giá không tồn tại";
         } else if (response.msg === "Bạn đã sử dụng mã này rồi") {
-          errorMessage = "Bạn đã sử dụng mã này rồi";
+          errorMessage = "Bạn đã sử dụng mã này rồi. Mỗi mã giảm giá chỉ được sử dụng một lần cho mỗi tài khoản.";
         } else if (response.msg === "Mã giảm giá đã hết lượt sử dụng") {
           errorMessage = "Mã giảm giá đã hết lượt sử dụng";
         }

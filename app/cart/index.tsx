@@ -167,7 +167,16 @@ export default function CartScreen() {
         Alert.alert('Thành công', result.message);
         setCouponCode(''); // Clear input field
       } else {
-        Alert.alert('Lỗi', result.message);
+        // Hiển thị thông báo lỗi với tiêu đề phù hợp
+        if (result.message.includes('đã sử dụng')) {
+          Alert.alert(
+            'Mã giảm giá đã sử dụng',
+            result.message,
+            [{ text: 'Đã hiểu' }]
+          );
+        } else {
+          Alert.alert('Lỗi', result.message);
+        }
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể áp dụng mã giảm giá');
