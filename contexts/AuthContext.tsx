@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import authService, { AuthResponse } from '../services/authService';
+import cartService from '../services/cartService';
 
 interface User {
   _id: string;
@@ -21,7 +22,7 @@ interface AuthContextType {
     phone: string;
     password: string;
   }) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   refreshUser: () => Promise<void>;
 }
@@ -46,9 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
+          await cartService.setCurrentUserId(currentUser._id);
+          console.log('🔐 User authenticated from storage:', currentUser.username);
+        } else {
+          console.log('🔓 No authenticated user found in storage');
+          await cartService.setCurrentUserId(null);
         }
       } catch (error) {
         console.log('Không có người dùng đã đăng nhập');
+        await cartService.setCurrentUserId(null);
       } finally {
         setLoading(false);
       }
@@ -59,11 +66,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (username: string, password: string) => {
     try {
+      console.log('🔑 Attempting sign in for user:', username);
       const response = await authService.signIn({ username, password });
       if (response) {
         setUser(response);
+        
+        // Lưu ID người dùng trong cartService
+        await cartService.setCurrentUserId(response._id);
+        console.log('👤 User ID set in cart service:', response._id);
+        
+        // Đồng bộ giỏ hàng local lên server
+        await cartService.syncCartToServer(response._id);
+        console.log('🔄 Cart synced to server for user:', response._id);
       }
     } catch (error) {
+      console.error('❌ Sign in failed:', error);
       throw error;
     }
   };
@@ -82,9 +99,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = () => {
-    authService.signOut();
-    setUser(null);
+  const signOut = async () => {
+    try {
+      console.log('🚪 Signing out user');
+      // Xóa ID người dùng trong cartService trước khi đăng xuất
+      await cartService.setCurrentUserId(null);
+      await authService.signOut();
+      setUser(null);
+      console.log('✅ User signed out successfully');
+    } catch (error) {
+      console.error('❌ Error signing out:', error);
+      throw error;
+    }
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -99,9 +125,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentUser = await authService.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);
+        await cartService.setCurrentUserId(currentUser._id);
+      } else {
+        await cartService.setCurrentUserId(null);
       }
     } catch (error) {
       console.log('Không có người dùng đã đăng nhập');
+      await cartService.setCurrentUserId(null);
     }
   };
 

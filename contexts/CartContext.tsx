@@ -45,6 +45,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [discount, setDiscount] = useState<number>(0);
   const [finalPrice, setFinalPrice] = useState<number>(0);
 
+  // Theo dõi thay đổi trạng thái xác thực
+  useEffect(() => {
+    const handleAuthChange = async () => {
+      console.log('🔄 Auth state changed, refreshing cart');
+      if (user && user._id) {
+        console.log('👤 User logged in, setting user ID in cart service:', user._id);
+        await cartService.setCurrentUserId(user._id);
+      } else if (!isAuthenticated) {
+        console.log('👤 User logged out, clearing user ID in cart service');
+        await cartService.setCurrentUserId(null);
+      }
+      // Làm mới giỏ hàng để phản ánh thay đổi
+      await refreshCart();
+    };
+
+    handleAuthChange();
+  }, [isAuthenticated, user]);
+
   // Load cart data and saved coupon on initialization
   useEffect(() => {
     const init = async () => {
@@ -52,11 +70,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await loadSavedCoupon();
     };
     init();
-  }, [isAuthenticated]); // Re-initialize when authentication status changes
+  }, []);
 
   const refreshCart = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Refreshing cart');
       const summary = await cartService.getCartSummary();
       setCartItems(summary.items);
       setCartSummary(summary);
@@ -68,7 +87,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFinalPrice(summary.totalPrice);
       }
     } catch (error) {
-      console.error('Error refreshing cart:', error);
+      console.error('❌ Error refreshing cart:', error);
     } finally {
       setLoading(false);
     }
@@ -83,7 +102,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         calculateDiscount(cartSummary.totalPrice);
       }
     } catch (error) {
-      console.error('Error loading saved coupon:', error);
+      console.error('❌ Error loading saved coupon:', error);
     }
   };
   
@@ -101,52 +120,60 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = async (product: Omit<CartItem, 'id_cart'>): Promise<boolean> => {
     try {
+      console.log('🛒 Adding to cart:', product.name_product);
       const success = await cartService.addProduct(product);
       if (success) {
+        console.log('✅ Product added successfully, refreshing cart');
         await refreshCart(); // Refresh cart after adding
       }
       return success;
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('❌ Error adding to cart:', error);
       return false;
     }
   };
 
   const updateQuantity = async (id_cart: string, newCount: number): Promise<boolean> => {
     try {
+      console.log(`🔄 Updating quantity for item ${id_cart} to ${newCount}`);
       const success = await cartService.updateQuantity(id_cart, newCount);
       if (success) {
+        console.log('✅ Quantity updated successfully, refreshing cart');
         await refreshCart(); // Refresh cart after updating
       }
       return success;
     } catch (error) {
-      console.error('Error updating cart quantity:', error);
+      console.error('❌ Error updating cart quantity:', error);
       return false;
     }
   };
 
   const removeFromCart = async (id_cart: string): Promise<boolean> => {
     try {
+      console.log(`🗑️ Removing item ${id_cart} from cart`);
       const success = await cartService.removeItem(id_cart);
       if (success) {
+        console.log('✅ Item removed successfully, refreshing cart');
         await refreshCart(); // Refresh cart after removing
       }
       return success;
     } catch (error) {
-      console.error('Error removing from cart:', error);
+      console.error('❌ Error removing from cart:', error);
       return false;
     }
   };
 
   const clearCart = async (): Promise<boolean> => {
     try {
+      console.log('🧹 Clearing cart');
       const success = await cartService.clearCart();
       if (success) {
+        console.log('✅ Cart cleared successfully, refreshing cart');
         await refreshCart(); // Refresh cart after clearing
       }
       return success;
     } catch (error) {
-      console.error('Error clearing cart:', error);
+      console.error('❌ Error clearing cart:', error);
       return false;
     }
   };
@@ -163,6 +190,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: "Bạn đã áp dụng một mã giảm giá. Vui lòng xóa mã hiện tại trước khi áp dụng mã mới." };
       }
 
+      console.log(`🎫 Applying coupon ${code} for user ${userId}`);
       const response = await couponService.checkCoupon(code, userId);
       
       if (response.msg === "Thành công" && response.coupon) {
@@ -177,6 +205,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Buộc cập nhật giỏ hàng ngay lập tức
         await refreshCart();
         
+        console.log('✅ Coupon applied successfully');
         return { success: true, message: "Áp dụng mã giảm giá thành công" };
       } else {
         // Handle various error messages
@@ -190,20 +219,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           errorMessage = "Mã giảm giá đã hết lượt sử dụng";
         }
         
+        console.log(`❌ Coupon application failed: ${errorMessage}`);
         return { success: false, message: errorMessage };
       }
     } catch (error) {
-      console.error('Error applying coupon:', error);
+      console.error('❌ Error applying coupon:', error);
       return { success: false, message: "Lỗi khi áp dụng mã giảm giá" };
     }
   };
   
   const removeCoupon = async (): Promise<void> => {
+    console.log('🗑️ Removing coupon');
     setCoupon(null);
     setCouponId('');
     setDiscount(0);
     setFinalPrice(cartSummary.totalPrice);
     await couponService.removeCoupon();
+    console.log('✅ Coupon removed successfully');
   };
   
   // Kiểm tra xem mã giảm giá đã được áp dụng chưa
