@@ -17,6 +17,11 @@ export interface Product {
   promotion?: number;
   saleId?: string;
   salePrice?: number;
+  // Optional product stats for bestselling
+  productStats?: {
+    totalSold: number;
+    averageRating: number;
+  };
 }
 
 export interface Category {
@@ -287,12 +292,49 @@ const productService = {
     });
   },
 
-  // Mock data - Sản phẩm bán chạy
+  // Sản phẩm bán chạy dựa trên thống kê thật
   getBestSellingProducts: async (limit: number = 8): Promise<Product[]> => {
-    const products = await productService.getProductsByGender('all');
-    return products
-      .sort((a, b) => b.number - a.number)
-      .slice(0, limit);
+    try {
+      console.log('📊 Getting best selling products...');
+      
+      // Lấy tất cả sản phẩm
+      const allProducts = await productService.getAllProducts();
+      
+      // Lấy thống kê cho từng sản phẩm
+      const productsWithStats = await Promise.all(
+        allProducts.slice(0, 20).map(async (product) => { // Chỉ check 20 sản phẩm đầu để tăng tốc
+          try {
+            const stats = await productService.getProductStats(product._id);
+            return {
+              ...product,
+              realTotalSold: stats.totalSold || 0
+            };
+          } catch (error) {
+            console.error(`Error getting stats for product ${product._id}:`, error);
+            return {
+              ...product,
+              realTotalSold: 0
+            };
+          }
+        })
+      );
+      
+      // Sắp xếp theo số lượng bán thật và lấy top
+      const bestSelling = productsWithStats
+        .sort((a, b) => b.realTotalSold - a.realTotalSold)
+        .slice(0, limit);
+      
+      console.log('✅ Best selling products:', bestSelling.map(p => `${p.name_product}: ${p.realTotalSold} sold`));
+      
+      return bestSelling;
+    } catch (error) {
+      console.error('❌ Error getting best selling products, using fallback:', error);
+      // Fallback: sử dụng mock data
+      const products = await productService.getAllProducts();
+      return products
+        .sort((a, b) => b.number - a.number)
+        .slice(0, limit);
+    }
   },
 
   // Mock data - Danh mục
@@ -441,6 +483,22 @@ const productService = {
       );
       
       return filteredMock.slice(0, limit);
+    }
+  },
+
+  // Lấy thống kê đánh giá và số lượng đã bán
+  getProductStats: async (productId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/Product/stats/${productId}`);
+      const stats = await response.json();
+      return stats;
+    } catch (error) {
+      console.error('Error getting product stats:', error);
+      return {
+        averageRating: 0,
+        totalReviews: 0,
+        totalSold: 0
+      };
     }
   }
 };

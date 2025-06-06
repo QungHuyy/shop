@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import productService, { Product } from '@/services/productService';
 import { useCart } from '@/contexts/CartContext';
+import ProductCard from '@/components/ProductCard';
 import { styles } from './styles';
 
 // Filter interfaces
@@ -30,7 +31,7 @@ interface PriceRange {
 interface FilterOptions {
   priceRange: PriceRange | null;
   hasPromotion: boolean | null; // true = có km, false = không km, null = tất cả
-  sortBy: 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'promotion_desc' | 'default';
+  sortBy: 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'promotion_desc' | 'bestselling' | 'default';
 }
 
 export default function ProductsScreen() {
@@ -69,6 +70,7 @@ export default function ProductsScreen() {
     { key: 'name_asc', label: 'Tên A → Z' },
     { key: 'name_desc', label: 'Tên Z → A' },
     { key: 'promotion_desc', label: 'Khuyến mãi cao nhất' },
+    { key: 'bestselling', label: 'Bán chạy nhất' },
   ];
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function ProductsScreen() {
       if (filter === 'sale') {
         setFilters(prev => ({ ...prev, hasPromotion: true, sortBy: 'promotion_desc' }));
       } else if (filter === 'bestseller') {
-        setFilters(prev => ({ ...prev, sortBy: 'promotion_desc' }));
+        setFilters(prev => ({ ...prev, sortBy: 'bestselling' }));
       } else if (filter === 'new') {
         // Có thể thêm logic cho sản phẩm mới
         setFilters(prev => ({ ...prev, sortBy: 'default' }));
@@ -199,6 +201,8 @@ export default function ProductsScreen() {
         return sorted.sort((a, b) => b.name_product.localeCompare(a.name_product));
       case 'promotion_desc':
         return sorted.sort((a, b) => (b.promotion || 0) - (a.promotion || 0));
+      case 'bestselling':
+        return sorted.sort((a, b) => (b.productStats?.totalSold || 0) - (a.productStats?.totalSold || 0));
       default:
         return sorted;
     }
@@ -388,57 +392,11 @@ export default function ProductsScreen() {
   );
 
   const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity 
+    <ProductCard 
+      product={item}
+      variant="grid"
       style={styles.productCard}
-      onPress={() => handleProductPress(item)}
-    >
-      <View style={styles.productImageContainer}>
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-        {item.promotion && (
-          <View style={styles.saleTag}>
-            <Text style={styles.saleText}>-{item.promotion}%</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="#ff4757" />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {item.name_product}
-        </Text>
-        
-        {item.promotion && item.salePrice ? (
-          <View style={styles.priceContainer}>
-            <Text style={styles.salePrice}>
-              {productService.formatPrice(item.salePrice)}
-            </Text>
-            <Text style={styles.originalPrice}>
-              {productService.formatPrice(item.price_product)}
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.productPrice}>
-            {productService.formatPrice(item.price_product)}
-          </Text>
-        )}
-        
-        <View style={styles.productMeta}>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={14} color="#ffa502" />
-            <Text style={styles.ratingText}>4.5</Text>
-          </View>
-          <Text style={styles.soldCount}>
-            Đã bán {item.number}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    />
   );
 
   const renderEmptyState = () => (

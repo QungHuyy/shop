@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import productService, { Product, Category, SaleProduct } from '@/services/productService';
+import ProductCard from '@/components/ProductCard';
 import { useCart } from '@/contexts/CartContext';
 import AppHeader from '@/components/AppHeader';
 
@@ -42,6 +43,7 @@ export default function HomeScreen() {
   const [maleProducts, setMaleProducts] = useState<Product[]>([]);
   const [femaleProducts, setFemaleProducts] = useState<Product[]>([]);
   const [unisexProducts, setUnisexProducts] = useState<Product[]>([]);
+  const [bestSellingProducts, setBestSellingProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -119,7 +121,7 @@ export default function HomeScreen() {
       setMaleProducts(maleData);
       setFemaleProducts(femaleData);
       setUnisexProducts(unisexData);
-      setProducts(bestSellingData);
+      setBestSellingProducts(bestSellingData);
       
       // Debug log để kiểm tra dữ liệu
       console.log('📊 Data loaded:');
@@ -375,39 +377,11 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
-            <TouchableOpacity 
+            <ProductCard 
+              product={item}
+              variant="horizontal"
               style={styles.saleProductCard}
-              onPress={() => handleProductPress(item)}
-            >
-              <Image
-                source={{ uri: item.image }}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
-              <View style={styles.saleTag}>
-                <Text style={styles.saleText}>-{item.promotion || 0}%</Text>
-              </View>
-              <View style={styles.favoriteButton}>
-                <Ionicons name="heart-outline" size={20} color="#ff4757" />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName} numberOfLines={2}>
-                  {item.name_product}
-                </Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.salePrice}>
-                    {productService.formatPrice(item.salePrice || item.price_product)}
-                  </Text>
-                  <Text style={styles.originalPrice}>
-                    {productService.formatPrice(item.price_product)}
-                  </Text>
-                </View>
-                <View style={styles.ratingContainer}>
-                  <Text style={styles.rating}>⭐ 4.5</Text>
-                  <Text style={styles.soldCount}>Đã bán {item.number}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            />
           )}
           contentContainerStyle={styles.productsList}
         />
@@ -439,8 +413,8 @@ export default function HomeScreen() {
         };
       } else if (title.includes('bán chạy')) {
         return () => {
-          console.log('📋 See all pressed: Bestseller products');
-          router.push('/products?filter=bestseller');
+          console.log('📋 See all pressed: Best selling products');
+          router.push('/products?filter=bestseller&sortBy=bestselling');
         };
       } else {
         return () => {
@@ -467,54 +441,27 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.productGrid}>
-            {products.map((product) => (
-              <TouchableOpacity 
-                key={product._id} 
-                style={styles.gridProductCard}
-                onPress={() => handleProductPress(product)}
-              >
-                <Image
-                  source={{ uri: product.image }}
-                  style={styles.gridProductImage}
-                  resizeMode="cover"
+          <FlatList
+            data={products.slice(0, 4)}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <View style={{ width: '48%', marginHorizontal: '1%', marginBottom: 12 }}>
+                <ProductCard 
+                  product={item}
+                  variant="horizontal"
+                  style={{ 
+                    ...styles.saleProductCard,
+                    width: '100%',
+                    marginHorizontal: 0
+                  }}
                 />
-                {product.promotion && (
-                  <View style={styles.gridSaleTag}>
-                    <Text style={styles.gridSaleText}>-{product.promotion}%</Text>
-                  </View>
-                )}
-                <View style={styles.gridFavoriteButton}>
-                  <Ionicons name="heart-outline" size={16} color="#ff4757" />
-                </View>
-                <View style={styles.gridProductInfo}>
-                  <Text style={styles.gridProductName} numberOfLines={2}>
-                    {product.name_product}
-                  </Text>
-                  
-                  {product.promotion && product.salePrice ? (
-                    <View style={styles.gridPriceContainer}>
-                      <Text style={styles.gridSalePrice}>
-                        {productService.formatPrice(product.salePrice || product.price_product)}
-                      </Text>
-                      <Text style={styles.gridOriginalPrice}>
-                        {productService.formatPrice(product.price_product)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.gridProductPrice}>
-                      {productService.formatPrice(product.price_product)}
-                    </Text>
-                  )}
-                  
-                  <View style={styles.gridRatingContainer}>
-                    <Text style={styles.gridRating}>⭐ 4.3</Text>
-                    <Text style={styles.gridSoldCount}>{product.number} đã bán</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+              </View>
+            )}
+            contentContainerStyle={styles.productsList}
+            scrollEnabled={false}
+          />
         )}
       </View>
     );
@@ -557,11 +504,11 @@ export default function HomeScreen() {
         {renderBanner()}
         {renderQuickActions()}
         {renderCategories()}
+        {renderProductGrid('Sản phẩm bán chạy', bestSellingProducts, '⭐')}
         {renderSaleProducts()}
         {renderProductGrid('Sản phẩm nam', maleProducts, '👨')}
         {renderProductGrid('Sản phẩm nữ', femaleProducts, '👩')}
         {renderProductGrid('Sản phẩm Unisex', unisexProducts, '👥')}
-        {renderProductGrid('Sản phẩm bán chạy', products, '⭐')}
       </ScrollView>
       
       {renderUserModal()}
