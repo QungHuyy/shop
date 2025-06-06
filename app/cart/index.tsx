@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   RefreshControl,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useCart } from '../../contexts/CartContext';
@@ -18,9 +20,24 @@ import productService from '../../services/productService';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CartScreen() {
-  const { cartItems, cartSummary, loading, updateQuantity, removeFromCart, clearCart, refreshCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { 
+    cartItems, 
+    cartSummary, 
+    loading, 
+    coupon, 
+    discount, 
+    finalPrice,
+    updateQuantity, 
+    removeFromCart, 
+    clearCart, 
+    refreshCart,
+    applyCoupon,
+    removeCoupon
+  } = useCart();
+  const { isAuthenticated, user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -122,6 +139,59 @@ export default function CartScreen() {
     // @ts-ignore - Route will work at runtime
     router.push('/checkout/');
   };
+  
+  const handleApplyCoupon = async () => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Yêu cầu đăng nhập',
+        'Vui lòng đăng nhập để sử dụng mã giảm giá',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Đăng nhập', onPress: () => router.push('/sign-in') }
+        ]
+      );
+      return;
+    }
+    
+    if (!couponCode.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã giảm giá');
+      return;
+    }
+    
+    setApplyingCoupon(true);
+    
+    try {
+      const result = await applyCoupon(couponCode.trim(), user?._id || '');
+      
+      if (result.success) {
+        Alert.alert('Thành công', result.message);
+        setCouponCode(''); // Clear input field
+      } else {
+        Alert.alert('Lỗi', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể áp dụng mã giảm giá');
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+  
+  const handleRemoveCoupon = async () => {
+    Alert.alert(
+      'Xác nhận',
+      'Bạn có muốn xóa mã giảm giá đã áp dụng?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          onPress: async () => {
+            await removeCoupon();
+            Alert.alert('Thành công', 'Đã xóa mã giảm giá');
+          }
+        }
+      ]
+    );
+  };
 
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('vi-VN', {
@@ -220,12 +290,66 @@ export default function CartScreen() {
             {cartItems.map(renderCartItem)}
           </ScrollView>
 
+          {/* Coupon Section */}
+          <View style={styles.couponSection}>
+            {coupon ? (
+              <View style={styles.appliedCoupon}>
+                <View style={styles.couponInfo}>
+                  <Text style={styles.couponCode}>Mã giảm giá: {coupon.code}</Text>
+                  <Text style={styles.couponDiscount}>Giảm {coupon.promotion}%</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.removeCouponButton}
+                  onPress={handleRemoveCoupon}
+                >
+                  <Ionicons name="close-circle" size={24} color="#dc3545" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.couponInputContainer}>
+                <TextInput
+                  style={styles.couponInput}
+                  placeholder="Nhập mã giảm giá"
+                  value={couponCode}
+                  onChangeText={setCouponCode}
+                />
+                <TouchableOpacity 
+                  style={styles.applyCouponButton}
+                  onPress={handleApplyCoupon}
+                  disabled={applyingCoupon}
+                >
+                  {applyingCoupon ? (
+                    <ActivityIndicator size="small" color="#333" />
+                  ) : (
+                    <Text style={styles.applyCouponText}>Áp dụng</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
           {/* Summary */}
           <View style={styles.summary}>
             <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Tạm tính:</Text>
+              <Text style={styles.summaryValue}>
+                {formatPrice(cartSummary.totalPrice)}
+              </Text>
+            </View>
+            
+            {coupon && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Giảm giá:</Text>
+                <Text style={styles.discountValue}>
+                  -{formatPrice(discount)}
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Tổng cộng:</Text>
               <Text style={styles.summaryTotal}>
-                {formatPrice(cartSummary.totalPrice)}
+                {formatPrice(finalPrice || cartSummary.totalPrice)}
               </Text>
             </View>
             
@@ -374,6 +498,65 @@ const styles = StyleSheet.create({
   removeButton: {
     padding: 8,
   },
+  couponSection: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9',
+  },
+  couponInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  couponInput: {
+    flex: 1,
+    height: 45,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    borderRadius: 5,
+    paddingHorizontal: 15,
+    marginRight: 10,
+    backgroundColor: '#f8f9fa',
+  },
+  applyCouponButton: {
+    backgroundColor: '#fed700',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 100,
+  },
+  applyCouponText: {
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  appliedCoupon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f9ff',
+    padding: 15,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#bee5eb',
+  },
+  couponInfo: {
+    flex: 1,
+  },
+  couponCode: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  couponDiscount: {
+    fontSize: 14,
+    color: '#28a745',
+  },
+  removeCouponButton: {
+    padding: 5,
+  },
   summary: {
     backgroundColor: '#fff',
     padding: 20,
@@ -389,6 +572,15 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 16,
     color: '#666',
+  },
+  summaryValue: {
+    fontSize: 16,
+    color: '#333',
+  },
+  discountValue: {
+    fontSize: 16,
+    color: '#28a745',
+    fontWeight: 'bold',
   },
   summaryTotal: {
     fontSize: 20,

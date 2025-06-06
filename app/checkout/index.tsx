@@ -14,10 +14,11 @@ import { router } from 'expo-router';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import orderService, { OrderFormData } from '../../services/orderService';
+import couponService from '../../services/couponService';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CheckoutScreen() {
-  const { cartItems, cartSummary, clearCart } = useCart();
+  const { cartItems, cartSummary, coupon, couponId, discount, finalPrice, clearCart, removeCoupon } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -84,16 +85,32 @@ export default function CheckoutScreen() {
     setLoading(true);
 
     try {
+      // Get the final price (with discount if coupon is applied)
+      const totalAmount = finalPrice || cartSummary.totalPrice;
+      
+      // Place order with coupon ID if available
       const success = await orderService.placeOrder(
         formData,
         cartItems,
-        cartSummary.totalPrice,
-        user._id
+        totalAmount,
+        user._id,
+        couponId
       );
 
       if (success) {
-        // Clear cart after successful order
+        // If coupon was used, update it on the server
+        if (couponId) {
+          try {
+            await couponService.updateCoupon(couponId);
+          } catch (error) {
+            console.error('Error updating coupon:', error);
+            // Continue with order success even if coupon update fails
+          }
+        }
+        
+        // Clear cart and coupon after successful order
         await clearCart();
+        await removeCoupon();
         
         Alert.alert(
           'Đặt hàng thành công!',
@@ -138,16 +155,25 @@ export default function CheckoutScreen() {
               <Text style={styles.summaryValue}>{cartSummary.totalItems}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tổng tiền:</Text>
-              <Text style={styles.summaryTotal}>{formatPrice(cartSummary.totalPrice)}</Text>
+              <Text style={styles.summaryLabel}>Tạm tính:</Text>
+              <Text style={styles.summaryValue}>{formatPrice(cartSummary.totalPrice)}</Text>
             </View>
+            {coupon && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Mã giảm giá:</Text>
+                <View style={styles.couponInfo}>
+                  <Text style={styles.couponCode}>{coupon.code} (-{coupon.promotion}%)</Text>
+                  <Text style={styles.discountValue}>-{formatPrice(discount)}</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Phí vận chuyển:</Text>
               <Text style={styles.summaryValue}>Miễn phí</Text>
             </View>
             <View style={[styles.summaryRow, styles.finalTotal]}>
               <Text style={styles.summaryLabel}>Thành tiền:</Text>
-              <Text style={styles.summaryTotal}>{formatPrice(cartSummary.totalPrice)}</Text>
+              <Text style={styles.summaryTotal}>{formatPrice(finalPrice || cartSummary.totalPrice)}</Text>
             </View>
           </View>
         </View>
@@ -231,7 +257,7 @@ export default function CheckoutScreen() {
             <ActivityIndicator color="#333" />
           ) : (
             <Text style={styles.placeOrderButtonText}>
-              Đặt hàng • {formatPrice(cartSummary.totalPrice)}
+              Đặt hàng • {formatPrice(finalPrice || cartSummary.totalPrice)}
             </Text>
           )}
         </TouchableOpacity>
@@ -300,6 +326,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
+  },
+  couponInfo: {
+    alignItems: 'flex-end',
+  },
+  couponCode: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  discountValue: {
+    fontSize: 14,
+    color: '#28a745',
+    fontWeight: 'bold',
   },
   summaryTotal: {
     fontSize: 16,

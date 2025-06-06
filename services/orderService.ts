@@ -112,7 +112,8 @@ const orderService = {
     formData: OrderFormData,
     cartItems: any[],
     totalPrice: number,
-    userId: string
+    userId: string,
+    couponId: string = ""
   ): Promise<boolean> => {
     try {
       // Step 1: Create note
@@ -133,7 +134,7 @@ const orderService = {
         id_payment: "6086709cdc52ab1ae999e882", // Default payment method
         id_note: noteResponse._id,
         feeship: 0,
-        id_coupon: "",
+        id_coupon: couponId,
         create_time: `${new Date().getDate()}/${(new Date().getMonth() + 1).toString()}/${new Date().getFullYear()}`,
       };
 
