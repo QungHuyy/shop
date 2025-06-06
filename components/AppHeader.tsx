@@ -8,10 +8,12 @@ import {
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import imageSearchService from '@/services/imageSearchService';
 import productService, { Product } from '@/services/productService';
@@ -32,6 +34,9 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const { cartSummary } = useCart();
+  
+  // User state
+  const [userName, setUserName] = useState<string>('');
   
   // Search states
   const [searchText, setSearchText] = useState('');
@@ -142,6 +147,23 @@ export default function AppHeader({
     } as any);
   };
 
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setUserName(user.fullname || '');
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+    
+    loadUserData();
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -152,12 +174,21 @@ export default function AppHeader({
   }, []);
 
   return (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
+    <View style={styles.headerWrapper}>
+      {/* Welcome message */}
+      <View style={styles.welcomeContainer}>
+        <Ionicons name="storefront-outline" size={16} color="#333" style={styles.welcomeIcon} />
+        <Text style={styles.welcomeText}>
+          Chào mừng {userName ? `${userName} ` : ''}đến với hệ thống thời trang H&A
+        </Text>
+      </View>
+      
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Image
-            source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1748992588/1_qrtmcd.png' }}
+            source={{ uri: 'https://res.cloudinary.com/dwmsfixy5/image/upload/v1749057780/logoapp_uus1zk.png' }}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -253,11 +284,32 @@ export default function AppHeader({
           visible={showSearchDropdown}
         />
       )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  headerWrapper: {
+    backgroundColor: '#fed700',
+  },
+  welcomeContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  welcomeIcon: {
+    marginRight: 6,
+  },
+  welcomeText: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   header: {
     backgroundColor: '#fed700',
     paddingHorizontal: 16,

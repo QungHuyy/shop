@@ -74,7 +74,7 @@ export default function AccountScreen() {
       icon: 'help-circle-outline',
       title: 'Hỗ trợ',
       subtitle: 'Liên hệ với chúng tôi',
-      action: () => Alert.alert('Hỗ trợ', 'Tính năng đang được phát triển'),
+      action: () => Alert.alert('Hỗ trợ', 'Mọi vấn đề thắc mắc liên hệ đến hotline 0838497756'),
     },
     {
       icon: 'information-circle-outline',
