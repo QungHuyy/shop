@@ -115,8 +115,8 @@ export default function ProductDetail() {
       return;
     }
 
-    if (newComment.trim().length < 10) {
-      Alert.alert('Lỗi', 'Đánh giá phải có ít nhất 10 ký tự');
+    if (newComment.trim().length === 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập nội dung đánh giá');
       return;
     }
 
@@ -297,11 +297,11 @@ export default function ProductDetail() {
       <View style={styles.reviewHeader}>
         <View style={styles.reviewAvatar}>
           <Text style={styles.reviewAvatarText}>
-            {item.id_user?.fullname?.charAt(0)?.toUpperCase() || 'U'}
+            {item.id_user?.fullname?.charAt(0)?.toUpperCase() || '👤'}
           </Text>
         </View>
         <View style={styles.reviewInfo}>
-          <Text style={styles.reviewUserName}>{item.id_user?.fullname || 'Người dùng ẩn danh'}</Text>
+          <Text style={styles.reviewUserName}>{item.id_user?.fullname}</Text>
           <View style={styles.reviewRating}>
             {renderStars(item.star, 14)}
             <Text style={styles.reviewDate}>
@@ -347,7 +347,7 @@ export default function ProductDetail() {
 
       <TextInput
         style={[styles.commentInput, !canReview && styles.commentInputDisabled]}
-        placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này... (ít nhất 10 ký tự)"
+        placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
         value={newComment}
         onChangeText={setNewComment}
         multiline

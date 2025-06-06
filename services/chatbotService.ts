@@ -323,46 +323,71 @@ class ChatbotService {
   private getFallbackResponse(message: string): string {
     const lowerMessage = message.toLowerCase();
     
+    // Greetings
     if (lowerMessage.includes('chào') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return 'Chào bạn! Tôi là trợ lý tư vấn thời trang AI. Tôi có thể giúp bạn tìm kiếm sản phẩm cụ thể trong cửa hàng. Bạn đang tìm loại trang phục nào?';
+      return 'Xin chào! Rất vui được gặp bạn tại Hệ thống Thời trang H&A. Tôi là trợ lý ảo – Tôi có thể giúp gì cho bạn?';
     }
     
+    // Product specific queries
     if (lowerMessage.includes('áo thun') || lowerMessage.includes('t-shirt')) {
-      return 'Chúng tôi có nhiều mẫu áo thun đẹp cho nam và nữ! Bạn muốn xem áo thun nam hay nữ? Có phong cách nào đặc biệt không?';
+      return 'H&A có nhiều mẫu áo thun đẹp cho nam và nữ! Chúng tôi có áo thun basic, áo thun form rộng, áo thun in họa tiết. Bạn muốn xem áo thun nam hay nữ? Có phong cách nào đặc biệt không?';
     }
     
     if (lowerMessage.includes('quần') || lowerMessage.includes('jeans')) {
-      return 'Chúng tôi có đa dạng các loại quần: jeans, kaki, short, jogger. Bạn muốn tìm quần gì và size bao nhiêu?';
+      return 'H&A có đa dạng các loại quần: jeans, kaki, short, jogger. Quần jeans của chúng tôi có nhiều kiểu dáng: skinny, slim fit, regular, baggy. Bạn muốn tìm quần gì và size bao nhiêu?';
     }
     
     if (lowerMessage.includes('váy') || lowerMessage.includes('đầm')) {
-      return 'Chúng tôi có nhiều mẫu váy và đầm xinh xắn! Bạn muốn váy dự tiệc, váy công sở hay váy dạo phố?';
+      return 'H&A có nhiều mẫu váy và đầm xinh xắn! Váy dự tiệc, váy công sở, váy dạo phố, đầm maxi, đầm suông... Bạn đang tìm kiểu váy nào và cho dịp gì?';
     }
     
+    // Style advice
+    if (lowerMessage.includes('phối đồ') || lowerMessage.includes('outfit') || lowerMessage.includes('mix')) {
+      return 'Để phối đồ đẹp, bạn nên chọn trang phục phù hợp với dáng người và màu da. Với áo thun basic, bạn có thể kết hợp với quần jeans và giày sneaker cho outfit năng động. Bạn muốn được tư vấn phối đồ cho dịp nào?';
+    }
+    
+    if (lowerMessage.includes('xu hướng') || lowerMessage.includes('trend')) {
+      return 'Xu hướng thời trang hiện nay đang thiên về phong cách Y2K, Minimalism và Oversized. Áo phông form rộng, quần ống suông, và màu sắc pastel đang rất được ưa chuộng. Bạn quan tâm đến phong cách nào?';
+    }
+    
+    // Information queries
     if (lowerMessage.includes('giá') || lowerMessage.includes('bao nhiêu')) {
-      return 'Giá sản phẩm của chúng tôi rất đa dạng từ 200.000 - 1.500.000 VNĐ tùy theo loại. Hãy cho tôi biết bạn tìm sản phẩm gì để tôi gợi ý cụ thể!';
+      return 'Sản phẩm tại H&A có giá từ 200.000 - 1.500.000 VNĐ. Áo thun từ 200.000 - 400.000 VNĐ, quần jeans từ 400.000 - 700.000 VNĐ, váy đầm từ 350.000 - 900.000 VNĐ. Bạn đang quan tâm đến sản phẩm nào?';
     }
     
     if (lowerMessage.includes('size') || lowerMessage.includes('kích thước')) {
-      return 'Chúng tôi có đầy đủ size S, M, L. Bạn có thể tham khảo bảng size chi tiết khi chọn sản phẩm. Bạn thường mặc size nào?';
+      return 'H&A có đầy đủ size S, M, L cho cả nam và nữ. Size S phù hợp với người dưới 55kg, M cho người 55-65kg, L cho người 65-75kg. Bạn có thể tham khảo bảng size chi tiết khi chọn sản phẩm. Bạn thường mặc size nào?';
     }
     
     if (lowerMessage.includes('giao hàng') || lowerMessage.includes('ship')) {
-      return 'Chúng tôi hỗ trợ giao hàng toàn quốc trong 1-3 ngày làm việc. Phí ship từ 20.000 VNĐ. Đơn hàng trên 500.000 VNĐ được freeship!';
+      return 'H&A hỗ trợ giao hàng toàn quốc trong 1-3 ngày làm việc. Phí ship từ 20.000 VNĐ. Đơn hàng trên 500.000 VNĐ được freeship! Bạn muốn biết thêm thông tin về chính sách giao hàng?';
     }
     
     if (lowerMessage.includes('cảm ơn') || lowerMessage.includes('thanks')) {
-      return 'Cảm ơn bạn đã tin tưởng! Nếu cần tư vấn thêm về sản phẩm nào, đừng ngại hỏi tôi nhé! 😊';
+      return 'Cảm ơn bạn đã tin tưởng H&A! Nếu cần tư vấn thêm về sản phẩm thời trang nào, đừng ngại hỏi tôi nhé! 😊';
+    }
+    
+    // Non-fashion related queries
+    if (lowerMessage.includes('thời tiết') || lowerMessage.includes('dự báo')) {
+      return 'Xin lỗi, tôi không thể cung cấp thông tin về thời tiết. Tôi chỉ có thể tư vấn về sản phẩm thời trang tại H&A. Bạn cần tư vấn trang phục phù hợp với thời tiết hiện tại không?';
+    }
+    
+    if (lowerMessage.includes('chính trị') || lowerMessage.includes('bầu cử') || lowerMessage.includes('chiến tranh')) {
+      return 'Xin lỗi, tôi không thể thảo luận về các chủ đề chính trị. Tôi chỉ có thể tư vấn về sản phẩm thời trang tại H&A. Bạn cần tìm sản phẩm thời trang nào không?';
+    }
+    
+    if (lowerMessage.includes('đầu tư') || lowerMessage.includes('chứng khoán') || lowerMessage.includes('bitcoin')) {
+      return 'Xin lỗi, tôi không thể tư vấn về đầu tư hay tài chính. Tôi chỉ có thể tư vấn về sản phẩm thời trang tại H&A. Bạn cần tìm sản phẩm thời trang nào không?';
     }
     
     // Default fallback
-    return 'Tôi là trợ lý tư vấn thời trang AI. Tôi có thể giúp bạn tìm sản phẩm cụ thể, tư vấn phối đồ và gợi ý outfit. Bạn muốn tìm gì hôm nay?';
+    return 'Tôi là trợ lý tư vấn thời trang của H&A. Tôi có thể giúp bạn tìm sản phẩm cụ thể, tư vấn phối đồ và gợi ý outfit phù hợp với dáng người, màu da và dịp sử dụng. Bạn cần tư vấn về sản phẩm thời trang nào?';
   }
 
   // Get personalized welcome message
   getWelcomeMessage(userId?: string): ChatMessage {
     return this.createBotMessage(
-      'Chào mừng bạn đến với trợ lý tư vấn thời trang AI! 🤖✨\n\nTôi có thể giúp bạn:\n• Tìm sản phẩm cụ thể trong cửa hàng\n• Tư vấn phối đồ từ sản phẩm có sẵn\n• Gợi ý theo dịp & thời tiết\n• Thông tin về giá, size, chất liệu\n\nChat history sẽ được lưu riêng cho tài khoản của bạn! 💾\n\nHãy hỏi tôi về sản phẩm bạn muốn tìm!'
+      'Xin chào! Rất vui được gặp bạn tại Hệ thống Thời trang H&A. Tôi là trợ lý ảo – Tôi có thể giúp gì cho bạn?'
     );
   }
 
@@ -373,8 +398,10 @@ class ChatbotService {
       'Gợi ý outfit đi làm',
       'Váy dự tiệc giá tốt',
       'Quần jeans nữ trending',
-      'Phối đồ mùa hè với budget 500k',
-      'Áo khoác nam đẹp'
+      'Phối đồ mùa hè như thế nào?',
+      'Xu hướng thời trang mùa này',
+      'Tư vấn đồ cho người mập',
+      'Áo khoác phù hợp thời tiết lạnh'
     ];
   }
 }
