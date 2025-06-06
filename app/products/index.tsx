@@ -35,7 +35,7 @@ interface FilterOptions {
 
 export default function ProductsScreen() {
   const router = useRouter();
-  const { gender, filter } = useLocalSearchParams();
+  const { gender, filter, search } = useLocalSearchParams();
   const { cartSummary } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -77,7 +77,7 @@ export default function ProductsScreen() {
 
   useEffect(() => {
     // Xử lý query parameters từ navigation
-    console.log('📍 Query params received:', { gender, filter });
+    console.log('📍 Query params received:', { gender, filter, search });
     
     if (gender && typeof gender === 'string') {
       console.log('🎯 Setting gender filter:', gender);
@@ -95,7 +95,12 @@ export default function ProductsScreen() {
         setFilters(prev => ({ ...prev, sortBy: 'default' }));
       }
     }
-  }, [gender, filter]);
+    
+    if (search && typeof search === 'string') {
+      console.log('🎯 Setting search text:', search);
+      setSearchText(search);
+    }
+  }, [gender, filter, search]);
 
   useEffect(() => {
     filterProducts();

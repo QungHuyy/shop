@@ -405,6 +405,43 @@ const productService = {
       console.error('❌ Error loading product detail:', error);
       return null;
     }
+  },
+
+  // Tìm kiếm sản phẩm theo từ khóa
+  searchProducts: async (searchText: string, limit: number = 20): Promise<Product[]> => {
+    try {
+      if (!searchText.trim()) {
+        return [];
+      }
+
+      console.log(`🔍 Searching products with keyword: "${searchText}"`);
+      
+      // Lấy tất cả sản phẩm từ server
+      const allProducts = await productService.getAllProducts();
+      
+      // Tìm kiếm theo tên sản phẩm (không phân biệt hoa thường)
+      const searchKeyword = searchText.toLowerCase().trim();
+      const filteredProducts = allProducts.filter(product => 
+        product.name_product.toLowerCase().includes(searchKeyword)
+      );
+      
+      // Giới hạn số lượng kết quả
+      const results = filteredProducts.slice(0, limit);
+      
+      console.log(`✅ Found ${results.length} products matching "${searchText}"`);
+      return results;
+    } catch (error) {
+      console.error('❌ Error searching products:', error);
+      
+      // Fallback to mock data search
+      const mockProducts = productService.getMockProducts();
+      const searchKeyword = searchText.toLowerCase().trim();
+      const filteredMock = mockProducts.filter(product => 
+        product.name_product.toLowerCase().includes(searchKeyword)
+      );
+      
+      return filteredMock.slice(0, limit);
+    }
   }
 };
 

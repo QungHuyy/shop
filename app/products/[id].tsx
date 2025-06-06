@@ -20,6 +20,7 @@ import commentService, { Comment, CreateCommentData, ReviewCheckResponse } from 
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import cartService from '../../services/cartService';
+import FavoriteButton from '../../components/FavoriteButton';
 
 const { width } = Dimensions.get('window');
 
@@ -430,19 +431,28 @@ export default function ProductDetail() {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
-        <TouchableOpacity 
-          style={styles.shareButton}
-          onPress={() => router.push('/cart')}
-        >
-          <Ionicons name="bag-outline" size={24} color="#333" />
-          {cartSummary?.totalItems > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>
-                {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <FavoriteButton
+            productId={product._id}
+            size={24}
+            iconColor="#333"
+            activeIconColor="#ff6b6b"
+            style={styles.favoriteButton}
+          />
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={() => router.push('/cart')}
+          >
+            <Ionicons name="bag-outline" size={24} color="#333" />
+            {cartSummary?.totalItems > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>
+                  {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -666,6 +676,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favoriteButton: {
+    marginRight: 8,
   },
   shareButton: {
     padding: 8,

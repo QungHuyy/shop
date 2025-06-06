@@ -1,22 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
+  TextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
-import { useNotification } from '@/contexts/NotificationContext';
+
 import imageSearchService from '@/services/imageSearchService';
+import productService, { Product } from '@/services/productService';
+import SearchDropdown from './SearchDropdown';
 
 interface AppHeaderProps {
   showCart?: boolean;
   showCamera?: boolean;
   showSearch?: boolean;
-  showNotification?: boolean;
   showChatbot?: boolean;
 }
 
@@ -24,12 +28,17 @@ export default function AppHeader({
   showCart = true, 
   showCamera = true, 
   showSearch = true,
-  showNotification = true,
   showChatbot = true
 }: AppHeaderProps) {
   const router = useRouter();
   const { cartSummary } = useCart();
-  const { summary } = useNotification();
+  
+  // Search states
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCartPress = () => {
     console.log('Cart button pressed');
@@ -37,10 +46,7 @@ export default function AppHeader({
     router.push('/cart');
   };
 
-  const handleNotificationPress = () => {
-    // @ts-ignore - Dynamic route will work at runtime
-    router.push('/notifications');
-  };
+
 
   const handleCameraPress = async () => {
     try {
@@ -65,6 +71,86 @@ export default function AppHeader({
     router.push('/chatbot' as any);
   };
 
+  // Search functions
+  const handleSearchTextChange = (text: string) => {
+    setSearchText(text);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (text.trim() === '') {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      setIsSearching(false);
+      return;
+    }
+    
+    // Set loading state
+    setIsSearching(true);
+    setShowSearchDropdown(true);
+    
+    // Debounce search
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('🔍 Searching for:', text);
+        const results = await productService.searchProducts(text, 10);
+        console.log('✅ Search results:', results.length, 'products found');
+        setSearchResults(results);
+        setShowSearchDropdown(results.length > 0); // Auto show dropdown when results found
+        setIsSearching(false);
+      } catch (error) {
+        console.error('❌ Search error:', error);
+        setSearchResults([]);
+        setShowSearchDropdown(false);
+        setIsSearching(false);
+      }
+    }, 300); // 300ms delay
+  };
+
+  const handleSearchFocus = () => {
+    if (searchText.trim() !== '' && searchResults.length > 0) {
+      setShowSearchDropdown(true);
+    }
+  };
+
+  const handleProductPress = (product: Product) => {
+    console.log('🔍 Product pressed in search dropdown:', product._id, product.name_product);
+    setShowSearchDropdown(false);
+    setSearchText('');
+    Keyboard.dismiss();
+    
+    // Navigate to product detail page
+    console.log('🚀 Navigating to product detail:', product._id);
+    router.push({
+      pathname: '/products/[id]',
+      params: { id: product._id }
+    } as any);
+  };
+
+  const handleSeeAllPress = (searchText: string) => {
+    console.log('📋 See all pressed with search:', searchText);
+    setShowSearchDropdown(false);
+    setSearchText('');
+    Keyboard.dismiss();
+    
+    // Navigate to products list with search parameter
+    router.push({
+      pathname: '/products',
+      params: { search: searchText }
+    } as any);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <View style={styles.header}>
       <View style={styles.headerContent}>
@@ -79,11 +165,43 @@ export default function AppHeader({
 
         {/* Search bar */}
         {showSearch && (
-          <TouchableOpacity style={styles.searchContainer}>
+          <View style={styles.searchContainer}>
             <Ionicons name="search" size={18} color="#666" />
-            <Text style={styles.searchPlaceholder}>Tìm kiếm sản phẩm</Text>
-          </TouchableOpacity>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm sản phẩm"
+              placeholderTextColor="#999"
+              value={searchText}
+              onChangeText={handleSearchTextChange}
+              onFocus={handleSearchFocus}
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                if (searchText.trim()) {
+                  handleSeeAllPress(searchText);
+                }
+              }}
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => {
+                  setSearchText('');
+                  setSearchResults([]);
+                  setShowSearchDropdown(false);
+                }}
+              >
+                <Ionicons name="close" size={16} color="#666" />
+              </TouchableOpacity>
+            )}
+            {isSearching && (
+              <View style={styles.searchLoading}>
+                <Ionicons name="refresh" size={16} color="#666" />
+              </View>
+            )}
+          </View>
         )}
+        
+
 
         {/* Header icons */}
         <View style={styles.headerIcons}>
@@ -105,21 +223,7 @@ export default function AppHeader({
             </TouchableOpacity>
           )}
           
-          {showNotification && (
-            <TouchableOpacity 
-              style={styles.headerIcon}
-              onPress={handleNotificationPress}
-            >
-              <Ionicons name="notifications-outline" size={22} color="#333" />
-              {summary?.unread > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {summary.unread > 99 ? '99+' : summary.unread}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
+
           
           {showCart && (
             <TouchableOpacity 
@@ -138,6 +242,17 @@ export default function AppHeader({
           )}
         </View>
       </View>
+      
+      {/* Search dropdown - outside header for better z-index */}
+      {showSearch && (
+        <SearchDropdown
+          products={searchResults}
+          onProductPress={handleProductPress}
+          onSeeAllPress={handleSeeAllPress}
+          searchText={searchText}
+          visible={showSearchDropdown}
+        />
+      )}
     </View>
   );
 }
@@ -173,12 +288,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 12,
+    position: 'relative',
   },
-  searchPlaceholder: {
+  searchInput: {
     marginLeft: 8,
-    color: '#999',
+    color: '#333',
     fontSize: 14,
     flex: 1,
+    paddingVertical: 0, // Remove default padding on Android
+  },
+  searchLoading: {
+    marginLeft: 8,
+  },
+  clearButton: {
+    marginLeft: 8,
+    padding: 4,
   },
   headerIcons: {
     flexDirection: 'row',
