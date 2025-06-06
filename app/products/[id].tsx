@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import cartService from '../../services/cartService';
 import FavoriteButton from '../../components/FavoriteButton';
+import SimilarProducts from '../../components/SimilarProducts';
 
 const { width } = Dimensions.get('window');
 
@@ -614,6 +615,13 @@ export default function ProductDetail() {
         {/* Review Form */}
         {showReviewForm && renderReviewForm()}
 
+        {/* Sản phẩm tương tự */}
+        <SimilarProducts 
+          productId={product._id} 
+          categoryId={product.id_category} 
+          gender={product.gender}
+        />
+
         {/* Reviews Section */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
@@ -647,12 +655,9 @@ export default function ProductDetail() {
 
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Ionicons name="cart-outline" size={20} color="#fed700" />
-          <Text style={styles.addToCartText}>Thêm vào giỏ</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
-          <Text style={styles.buyNowText}>Mua ngay</Text>
+        <TouchableOpacity style={styles.addToCartButtonFull} onPress={handleAddToCart}>
+          <Ionicons name="cart-outline" size={20} color="#333" />
+          <Text style={styles.addToCartTextFull}>Thêm vào giỏ</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -914,6 +919,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fed700',
+  },
+  addToCartButtonFull: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#fed700',
+  },
+  addToCartTextFull: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
   buyNowButton: {
     flex: 1,

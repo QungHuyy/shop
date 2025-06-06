@@ -8,6 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Formik } from 'formik';
@@ -77,6 +78,13 @@ export default function SignIn() {
       const message = err.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
       setError(message);
       showError(message);
+      
+      // Hiển thị Alert
+      Alert.alert(
+        'Đăng nhập thất bại',
+        message,
+        [{ text: 'Đóng', style: 'cancel' }]
+      );
     } finally {
       setSubmitting(false);
     }

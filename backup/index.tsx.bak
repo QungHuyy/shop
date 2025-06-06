@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,23 +40,13 @@ export default function CartScreen() {
     isCouponApplied
   } = useCart();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
-  
-  // Đặt tất cả các useState liên tiếp nhau
   const [refreshing, setRefreshing] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  // Sử dụng hook để theo dõi trạng thái bàn phím
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   
-  // Tạo hàm để buộc cập nhật UI
-  const [, forceUpdate] = useState({});
-  
-  // Tạo state riêng để theo dõi giá đã giảm
-  const [discountedPrice, setDiscountedPrice] = useState(0);
-  
-  // Hàm để cập nhật UI
-  const forceRerender = () => {
-    forceUpdate({});
-  };
+  // Middleware đã xử lý chuyển hướng nếu chưa đăng nhập
 
   // Thiết lập effect để theo dõi bàn phím
   useEffect(() => {
@@ -78,35 +68,6 @@ export default function CartScreen() {
       keyboardDidHideListener.remove();
     };
   }, []);
-
-  // Theo dõi thay đổi của coupon, discount và cartSummary.totalPrice
-  useEffect(() => {
-    if (coupon) {
-      console.log('🧮 Thông tin giảm giá khi có thay đổi:');
-      console.log('- Tổng tiền gốc:', cartSummary.totalPrice);
-      console.log('- Mã giảm giá:', coupon.code);
-      console.log('- Phần trăm giảm:', coupon.promotion + '%');
-      console.log('- Giá trị giảm hiện tại:', discount);
-      
-      // Tính lại giá trị giảm theo phần trăm của coupon
-      const calculatedDiscount = Math.round((cartSummary.totalPrice * parseInt(coupon.promotion)) / 100);
-      console.log('- Giá trị giảm tính lại:', calculatedDiscount);
-      console.log('- Giá cuối cùng:', cartSummary.totalPrice - calculatedDiscount);
-    }
-  }, [coupon, discount, cartSummary.totalPrice]);
-
-  // Cập nhật giá đã giảm khi có thay đổi trong coupon, discount hoặc tổng tiền
-  useEffect(() => {
-    if (coupon && discount > 0) {
-      // Tính giá sau khi giảm
-      const newDiscountedPrice = Math.max(0, cartSummary.totalPrice - discount);
-      console.log('🧮 Cập nhật giá đã giảm:', newDiscountedPrice);
-      setDiscountedPrice(newDiscountedPrice);
-    } else {
-      // Nếu không có mã giảm giá, giá đã giảm = giá gốc
-      setDiscountedPrice(cartSummary.totalPrice);
-    }
-  }, [coupon, discount, cartSummary.totalPrice]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -235,32 +196,11 @@ export default function CartScreen() {
     setApplyingCoupon(true);
     
     try {
-      // Gọi API áp dụng mã giảm giá
       const result = await applyCoupon(couponCode.trim(), user?._id || '');
       
       if (result.success) {
-        // Cập nhật UI và xóa mã nhập vào
-        setCouponCode('');
-        
-        // Làm mới lần 1
-        await refreshCart();
-        
-        // Tính toán giá đã giảm ngay lập tức nếu có thông tin coupon mới
-        if (coupon) {
-          const discountAmount = Math.round((cartSummary.totalPrice * parseInt(coupon.promotion)) / 100);
-          setDiscountedPrice(Math.max(0, cartSummary.totalPrice - discountAmount));
-        }
-        
-        // Đợi một chút và làm mới lần 2 để đảm bảo giá được cập nhật
-        setTimeout(async () => {
-          await refreshCart();
-          forceRerender();
-          
-          // Hiển thị thông báo thành công sau khi đã cập nhật UI
-          setTimeout(() => {
-            Alert.alert('Thành công', result.message);
-          }, 300);
-        }, 500);
+        Alert.alert('Thành công', result.message);
+        setCouponCode(''); // Clear input field
       } else {
         // Hiển thị thông báo lỗi với tiêu đề phù hợp
         if (result.message.includes('đã sử dụng')) {
@@ -288,35 +228,9 @@ export default function CartScreen() {
         { text: 'Hủy', style: 'cancel' },
         {
           text: 'Xóa',
-          style: 'destructive',
           onPress: async () => {
-            try {
-              // Xóa mã giảm giá
-              await removeCoupon();
-              
-              // Đặt lại giá thành giá gốc ngay lập tức
-              setDiscountedPrice(cartSummary.totalPrice);
-              
-              // Làm mới lần 1
-              await refreshCart();
-              forceRerender();
-              
-              // Đợi một chút và làm mới lần 2 để đảm bảo giá được cập nhật
-              setTimeout(async () => {
-                await refreshCart();
-                
-                // Đặt lại giá thành giá gốc một lần nữa sau khi refresh
-                setDiscountedPrice(cartSummary.totalPrice);
-                forceRerender();
-                
-                // Hiển thị thông báo thành công sau khi đã cập nhật UI
-                setTimeout(() => {
-                  Alert.alert('Thành công', 'Đã xóa mã giảm giá');
-                }, 300);
-              }, 500);
-            } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa mã giảm giá');
-            }
+            await removeCoupon();
+            Alert.alert('Thành công', 'Đã xóa mã giảm giá');
           }
         }
       ]
@@ -386,26 +300,6 @@ export default function CartScreen() {
       router.replace('/');
     }
   };
-
-  // Tính toán giá cuối cùng một cách chính xác
-  const calculateFinalPrice = () => {
-    console.log('=== Tính toán giá cuối cùng ===');
-    console.log('Tổng tiền gốc:', cartSummary.totalPrice);
-    console.log('Có mã giảm giá:', !!coupon);
-    console.log('Giá trị giảm:', discount);
-    console.log('FinalPrice từ context:', finalPrice);
-    
-    if (coupon && discount > 0) {
-      const calculatedFinalPrice = Math.max(0, cartSummary.totalPrice - discount);
-      console.log('Giá cuối cùng đã tính:', calculatedFinalPrice);
-      return calculatedFinalPrice;
-    }
-    console.log('Giá cuối cùng (không giảm):', cartSummary.totalPrice);
-    return cartSummary.totalPrice;
-  };
-
-  // Tính toán giá ngay khi component render và mỗi khi các giá trị phụ thuộc thay đổi
-  const displayFinalPrice = useMemo(() => calculateFinalPrice(), [cartSummary.totalPrice, coupon, discount]);
 
   if (loading) {
     return (
@@ -524,26 +418,26 @@ export default function CartScreen() {
               styles.summary,
               keyboardVisible && { display: 'none' }
             ]}>
-              <View style={styles.summaryRow} key={`summary-total-${Date.now()}`}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tạm tính:</Text>
                 <Text style={styles.summaryValue}>
-                  {formatPrice(cartSummary.totalPrice || 0)}
+                  {formatPrice(cartSummary.totalPrice)}
                 </Text>
               </View>
               
-              {coupon && discount > 0 && (
-                <View style={styles.summaryRow} key={`summary-discount-${Date.now()}`}>
+              {coupon && (
+                <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Giảm giá:</Text>
                   <Text style={styles.discountValue}>
-                    -{formatPrice(discount || 0)}
+                    -{formatPrice(discount)}
                   </Text>
                 </View>
               )}
               
-              <View style={styles.summaryRow} key={`summary-final-${Date.now()}`}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tổng cộng:</Text>
                 <Text style={styles.summaryTotal}>
-                  {formatPrice(discountedPrice)}
+                  {formatPrice(finalPrice || cartSummary.totalPrice)}
                 </Text>
               </View>
               

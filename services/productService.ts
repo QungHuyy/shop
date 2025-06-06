@@ -500,6 +500,72 @@ const productService = {
         totalSold: 0
       };
     }
+  },
+
+  // Lấy các sản phẩm tương tự
+  getSimilarProducts: async (productId: string, limit: number = 8): Promise<Product[]> => {
+    try {
+      console.log(`🔍 Finding similar products for: ${productId}`);
+      
+      // Lấy thông tin sản phẩm hiện tại
+      const currentProduct = await productService.getProductDetail(productId);
+      if (!currentProduct) {
+        throw new Error('Current product not found');
+      }
+
+      // Lấy tất cả sản phẩm
+      const allProducts = await productService.getAllProducts();
+      
+      // Lọc ra các sản phẩm khác với sản phẩm hiện tại
+      const otherProducts = allProducts.filter(p => p._id !== productId);
+      
+      // Sắp xếp theo mức độ tương tự (theo logic ưu tiên)
+      const similarityScores: { product: Product; score: number }[] = otherProducts.map(product => {
+        let score = 0;
+        
+        // Ưu tiên 1: Cùng category và gender (điểm cao nhất)
+        if (product.id_category === currentProduct.id_category && product.gender === currentProduct.gender) {
+          score += 100;
+        }
+        // Ưu tiên 2: Cùng gender
+        else if (product.gender === currentProduct.gender) {
+          score += 50;
+        }
+        // Ưu tiên 3: Cùng category
+        else if (product.id_category === currentProduct.id_category) {
+          score += 25;
+        }
+        
+        return { product, score };
+      });
+      
+      // Sắp xếp theo điểm giảm dần
+      const sortedProducts = similarityScores
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.product);
+      
+      // Lấy ít nhất 4 sản phẩm, nếu không đủ thì lấy ngẫu nhiên từ otherProducts
+      let results = sortedProducts.slice(0, limit);
+      
+      if (results.length < 4) {
+        console.log('⚠️ Not enough similar products, adding random products');
+        // Lấy các sản phẩm ngẫu nhiên để đạt đủ số lượng tối thiểu
+        const remainingProducts = otherProducts
+          .filter(p => !results.some(r => r._id === p._id))
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 4 - results.length);
+        
+        results = [...results, ...remainingProducts];
+      }
+      
+      console.log(`✅ Found ${results.length} similar products`);
+      return results;
+    } catch (error) {
+      console.error('❌ Error finding similar products:', error);
+      
+      // Fallback: trả về sản phẩm mock
+      return productService.getMockProducts().slice(0, limit);
+    }
   }
 };
 

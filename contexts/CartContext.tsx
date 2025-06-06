@@ -194,18 +194,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await couponService.checkCoupon(code, userId);
       
       if (response.msg === "Thành công" && response.coupon) {
-        // Save coupon to state and storage
-        setCoupon(response.coupon);
-        setCouponId(response.coupon._id);
+        // Lưu mã giảm giá vào local storage
         await couponService.saveCoupon(response.coupon);
         
-        // Calculate discount
-        calculateDiscount(cartSummary.totalPrice);
+        // Cập nhật state
+        setCoupon(response.coupon);
+        setCouponId(response.coupon._id);
         
-        // Buộc cập nhật giỏ hàng ngay lập tức
-        await refreshCart();
+        // Lấy thông tin giỏ hàng mới nhất
+        const summary = await cartService.getCartSummary();
+        
+        // Tính toán giá trị giảm giá
+        const discountAmount = Math.round((summary.totalPrice * parseInt(response.coupon.promotion)) / 100);
+        const finalPriceValue = Math.max(0, summary.totalPrice - discountAmount);
+        
+        // Cập nhật state cho giỏ hàng và giá
+        setCartItems(summary.items);
+        setCartSummary(summary);
+        setDiscount(discountAmount);
+        setFinalPrice(finalPriceValue);
         
         console.log('✅ Coupon applied successfully');
+        console.log('💰 Discount:', discountAmount);
+        console.log('💲 Final price:', finalPriceValue);
+        
         return { success: true, message: "Áp dụng mã giảm giá thành công" };
       } else {
         // Handle various error messages
@@ -230,12 +242,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const removeCoupon = async (): Promise<void> => {
     console.log('🗑️ Removing coupon');
+    
+    // Xóa mã giảm giá khỏi local storage
+    await couponService.removeCoupon();
+    
+    // Đặt lại state liên quan đến coupon
     setCoupon(null);
     setCouponId('');
     setDiscount(0);
-    setFinalPrice(cartSummary.totalPrice);
-    await couponService.removeCoupon();
+    
+    // Lấy thông tin giỏ hàng mới nhất
+    const summary = await cartService.getCartSummary();
+    
+    // Cập nhật state cho giỏ hàng và giá
+    setCartItems(summary.items);
+    setCartSummary(summary);
+    setFinalPrice(summary.totalPrice);
+    
     console.log('✅ Coupon removed successfully');
+    console.log('💲 Reset final price to:', summary.totalPrice);
   };
   
   // Kiểm tra xem mã giảm giá đã được áp dụng chưa
