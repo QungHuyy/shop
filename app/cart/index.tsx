@@ -242,7 +242,7 @@ export default function CartScreen() {
         // Cập nhật UI và xóa mã nhập vào
         setCouponCode('');
         
-        // Làm mới lần 1
+        // Làm mới giỏ hàng
         await refreshCart();
         
         // Tính toán giá đã giảm ngay lập tức nếu có thông tin coupon mới
@@ -251,16 +251,11 @@ export default function CartScreen() {
           setDiscountedPrice(Math.max(0, cartSummary.totalPrice - discountAmount));
         }
         
-        // Đợi một chút và làm mới lần 2 để đảm bảo giá được cập nhật
-        setTimeout(async () => {
-          await refreshCart();
-          forceRerender();
-          
-          // Hiển thị thông báo thành công sau khi đã cập nhật UI
-          setTimeout(() => {
-            Alert.alert('Thành công', result.message);
-          }, 300);
-        }, 500);
+        // Buộc UI cập nhật
+        forceRerender();
+        
+        // Hiển thị thông báo thành công
+        Alert.alert('Thành công', result.message);
       } else {
         // Hiển thị thông báo lỗi với tiêu đề phù hợp
         if (result.message.includes('đã sử dụng')) {
@@ -297,23 +292,17 @@ export default function CartScreen() {
               // Đặt lại giá thành giá gốc ngay lập tức
               setDiscountedPrice(cartSummary.totalPrice);
               
-              // Làm mới lần 1
+              // Làm mới giỏ hàng
               await refreshCart();
+              
+              // Đặt lại giá thành giá gốc một lần nữa sau khi refresh
+              setDiscountedPrice(cartSummary.totalPrice);
+              
+              // Buộc UI cập nhật
               forceRerender();
               
-              // Đợi một chút và làm mới lần 2 để đảm bảo giá được cập nhật
-              setTimeout(async () => {
-                await refreshCart();
-                
-                // Đặt lại giá thành giá gốc một lần nữa sau khi refresh
-                setDiscountedPrice(cartSummary.totalPrice);
-                forceRerender();
-                
-                // Hiển thị thông báo thành công sau khi đã cập nhật UI
-                setTimeout(() => {
-                  Alert.alert('Thành công', 'Đã xóa mã giảm giá');
-                }, 300);
-              }, 500);
+              // Hiển thị thông báo thành công
+              Alert.alert('Thành công', 'Đã xóa mã giảm giá');
             } catch (error) {
               Alert.alert('Lỗi', 'Không thể xóa mã giảm giá');
             }

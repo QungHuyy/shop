@@ -184,9 +184,6 @@ export default function EditProfile() {
                   {profileData?.fullname?.charAt(0)?.toUpperCase() || 'U'}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.changeAvatarButton}>
-                <Text style={styles.changeAvatarText}>Đổi ảnh đại diện</Text>
-              </TouchableOpacity>
             </View>
 
             <Formik
@@ -387,17 +384,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
-  },
-  changeAvatarButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007bff',
-  },
-  changeAvatarText: {
-    fontSize: 14,
-    color: '#007bff',
   },
   form: {
     width: '100%',

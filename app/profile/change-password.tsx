@@ -190,14 +190,6 @@ export default function ChangePassword() {
               )}
             </Formik>
           </View>
-
-          <View style={styles.securityTips}>
-            <Text style={styles.tipsTitle}>💡 Mẹo bảo mật</Text>
-            <Text style={styles.tipText}>• Nên sử dụng mật khẩu có độ dài từ 6 ký tự trở lên </Text>
-            <Text style={styles.tipText}>• Kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt</Text>
-            <Text style={styles.tipText}>• Không sử dụng thông tin cá nhân dễ đoán</Text>
-            <Text style={styles.tipText}>• Đổi mật khẩu định kỳ để bảo mật tài khoản</Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -323,27 +315,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  securityTips: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  tipText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    lineHeight: 20,
   },
 }); 
