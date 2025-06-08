@@ -60,7 +60,7 @@ const orderHistoryService = {
     try {
       console.log(`Fetching order history for user ${userId}`);
       
-      const response = await fetch(`${ORDER_API}/order/${userId}`, {
+      const response = await fetch(`${API_URL}/Payment/order/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ const orderHistoryService = {
   // Get order detail by order ID
   getOrderDetail: async (orderId: string): Promise<OrderHistory> => {
     try {
-      const response = await fetch(`${ORDER_API}/order/detail/${orderId}`, {
+      const response = await fetch(`${API_URL}/Payment/order/detail/${orderId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +249,10 @@ const orderHistoryService = {
   // Lấy lịch sử đơn hàng của người dùng
   getUserOrders: async (userId: string): Promise<OrderHistory[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Payment/order/${userId}`, {
+      console.log(`Fetching order history for user ${userId}`);
+      
+      // Sử dụng cùng endpoint với getOrderHistory để đảm bảo tính nhất quán
+      const response = await fetch(`${API_URL}/Payment/order/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -257,10 +260,13 @@ const orderHistoryService = {
       });
 
       if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
         throw new Error('Failed to fetch order history');
       }
 
-      return await response.json();
+      const orders = await response.json();
+      console.log(`Received ${orders.length} orders from getUserOrders API`);
+      return orders;
     } catch (error) {
       console.error('Error fetching order history:', error);
       return [];

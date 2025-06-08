@@ -48,9 +48,19 @@ const cartService = {
       if (userId) {
         try {
           console.log('🔍 Fetching cart from server for user:', userId);
-          const response = await axios.get(`${API_URL}/Cart/user/${userId}`);
           
-          if (response.data && Array.isArray(response.data)) {
+          // Tạo timeout cho API call để tránh đợi quá lâu
+          const timeoutPromise = new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), 3000)
+          );
+          
+          // Race giữa API call và timeout
+          const response = await Promise.race([
+            axios.get(`${CART_API}/user/${userId}`),
+            timeoutPromise
+          ]) as any;
+          
+          if (response && response.data && Array.isArray(response.data)) {
             console.log(`✅ Fetched ${response.data.length} items from server cart`);
             
             // Chuyển đổi dữ liệu từ server về định dạng CartItem
@@ -67,16 +77,22 @@ const cartService = {
             
             return cartItems;
           }
-          return [];
+          
+          // Nếu response không hợp lệ, fallback to local storage
+          console.log('⚠️ Invalid response from server, falling back to local storage');
+          const cartData = await AsyncStorage.getItem(CART_STORAGE_KEY);
+          return cartData ? JSON.parse(cartData) : [];
         } catch (error) {
           console.error('❌ Error fetching cart from server:', error);
           // Fallback to local storage if server request fails
+          console.log('🔄 Falling back to local storage for cart data');
           const cartData = await AsyncStorage.getItem(CART_STORAGE_KEY);
           return cartData ? JSON.parse(cartData) : [];
         }
       } 
       
       // Nếu chưa đăng nhập, lấy giỏ hàng từ local storage
+      console.log('📱 User not logged in, getting cart from local storage');
       const cartData = await AsyncStorage.getItem(CART_STORAGE_KEY);
       return cartData ? JSON.parse(cartData) : [];
     } catch (error) {
@@ -107,17 +123,48 @@ const cartService = {
             originalPrice: data.originalPrice
           };
           
-          // Gọi API thêm vào giỏ hàng
-          const response = await axios.post(`${API_URL}/Cart`, cartData);
-          console.log('✅ Added item to server cart:', response.data);
+          // Gọi API thêm vào giỏ hàng với timeout 3 giây
+          const timeoutPromise = new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), 3000)
+          );
+          
+          // Race giữa API call và timeout
+          const response: any = await Promise.race([
+            axios.post(CART_API, cartData),
+            timeoutPromise
+          ]);
+          
+          if (response && response.data) {
+            console.log('✅ Added item to server cart:', response.data);
+            return true;
+          }
+          
+          // Nếu API thất bại, lưu vào local storage như backup
+          console.log('⚠️ Invalid response from server, falling back to local storage');
+          await cartService.addToLocalStorage(data);
           return true;
         } catch (error) {
           console.error('❌ Error adding product to server cart:', error);
+          console.log('🔄 Falling back to local storage...');
           // Fallback to local storage if server request fails
+          await cartService.addToLocalStorage(data);
+          return true;
         }
       }
       
-      // Xử lý giỏ hàng local nếu chưa đăng nhập hoặc server request fails
+      // Xử lý giỏ hàng local nếu chưa đăng nhập
+      await cartService.addToLocalStorage(data);
+      return true;
+    } catch (error) {
+      console.error('❌ Error adding product to cart:', error);
+      return false;
+    }
+  },
+
+  // Hàm helper để thêm sản phẩm vào localStorage
+  addToLocalStorage: async (data: Omit<CartItem, 'id_cart'>): Promise<boolean> => {
+    try {
+      console.log('🛒 Adding product to local cart');
       const existingCart = await cartService.getCartItems();
       
       // Tạo ID giỏ hàng mới
@@ -126,8 +173,6 @@ const cartService = {
         ...data,
         id_cart: newItemId
       };
-
-      console.log('🛒 Adding product to local cart');
 
       // Kiểm tra xem sản phẩm đã tồn tại trong giỏ hàng chưa
       let found = false;
@@ -153,7 +198,7 @@ const cartService = {
       await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updatedCart));
       return true;
     } catch (error) {
-      console.error('❌ Error adding product to cart:', error);
+      console.error('❌ Error adding to local storage:', error);
       return false;
     }
   },

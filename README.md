@@ -48,3 +48,54 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# Shop App
+
+## Các thay đổi để khắc phục vấn đề kết nối API
+
+### Vấn đề được phát hiện
+- Endpoint `/User/login` không tồn tại, nhưng `/User/detail/login` hoạt động chính xác
+- Một số endpoint như `/Cart` và `/Payment` trả về lỗi 404 Not Found
+- Endpoint đơn hàng phải sử dụng `/Payment/order` thay vì `/Payment`
+
+### Giải pháp đã thực hiện
+
+1. **Cập nhật cấu hình API**
+   - Đã sửa đường dẫn đăng nhập trong `authService.ts` từ `/login` thành `/detail/login`
+   - Đã sửa đường dẫn đặt hàng trong `config/api.ts` từ `/Payment` thành `/Payment/order`
+
+2. **Cải thiện khả năng dự phòng khi API không hoạt động**
+   - Thêm timeout cho các API request để tránh đợi quá lâu
+   - Tự động fallback về localStorage khi server không phản hồi
+   - Đã tạo `networkHelper.ts` với các utility để xử lý các vấn đề kết nối mạng
+
+3. **Các script kiểm tra API**
+   - Cập nhật `scripts/check-api.js` để kiểm tra các endpoint chính xác
+   - Thêm `scripts/test-auth.js` để kiểm tra riêng phần đăng nhập/đăng ký
+
+### Lưu ý khi phát triển
+
+1. **Cấu hình API**
+   - Tất cả các URL API được cấu hình tại `config/api.ts` và `config/api.js`
+   - Khi thêm API mới, hãy cập nhật cả hai file
+
+2. **Xử lý lỗi**
+   - Luôn sử dụng cơ chế dự phòng khi gọi API
+   - Sử dụng NetworkHelper.withTimeout() để tránh request bị treo
+   - Sử dụng NetworkHelper.withRetry() cho các API quan trọng
+
+## Hướng dẫn thiết lập và chạy ứng dụng
+
+### Yêu cầu hệ thống
+- Node.js (v14.0.0 hoặc cao hơn)
+- Expo CLI (v4.0.0 hoặc cao hơn)
+- React Native (v0.64.0 hoặc cao hơn)
+
+### Cài đặt
+1. Clone repository
+2. Chạy `npm install`
+3. Cấu hình IP server trong `config/api.ts`
+4. Chạy `npm start` để khởi động ứng dụng
+
+### Kiểm tra kết nối API
+Chạy `node scripts/check-api.js` để kiểm tra trạng thái kết nối của các API

@@ -7,7 +7,7 @@ const API_BASE = `http://${SERVER_IP}:${SERVER_PORT}/api`;
 const endpointsToCheck = [
   // User endpoints
   `${API_BASE}/User`,
-  `${API_BASE}/User/login`,
+  `${API_BASE}/User/detail/login`,
   
   // Product endpoints
   `${API_BASE}/Product`,
@@ -16,19 +16,18 @@ const endpointsToCheck = [
   `${API_BASE}/Cart`,
   
   // Order endpoints
-  `${API_BASE}/Payment`,
   `${API_BASE}/Payment/order`,
+  `${API_BASE}/DetailOrder`,
+  
+  // Other endpoints
+  `${API_BASE}/Note`,
+  `${API_BASE}/Comment`,
 ];
 
 // Các trường hợp API với tham số
 const testCases = [
   {
     name: 'Đăng nhập với tham số',
-    url: `${API_BASE}/User/login`,
-    params: { username: 'testuser', password: 'testpassword' }
-  },
-  {
-    name: 'Kiểm tra API đăng nhập cũ',
     url: `${API_BASE}/User/detail/login`,
     params: { username: 'testuser', password: 'testpassword' }
   }
@@ -121,8 +120,9 @@ async function checkAllEndpoints() {
   if (failCount > 0 || testFailCount > 0) {
     console.log('\n⚠️ Some endpoints or tests failed. Please check your backend server.');
     console.log('💡 TIP: Kiểm tra xem backend có đúng các endpoint này không:');
-    console.log('- Đăng nhập: /api/User/login hoặc /api/User/detail/login');
+    console.log('- Đăng nhập: /api/User/detail/login');
     console.log('- Đăng ký: /api/User');
+    console.log('- Đặt hàng: /api/Payment/order');
   } else {
     console.log('\n✅ All endpoints and tests are successful!');
   }

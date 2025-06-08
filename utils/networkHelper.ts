@@ -1,96 +1,117 @@
 // Network helper utilities for testing server connection
 
-export class NetworkHelper {
-  static async testServerConnection(baseUrl: string): Promise<{
-    success: boolean;
-    message: string;
-    details?: any;
-  }> {
+import axios from 'axios';
+import { Platform } from 'react-native';
+import { SERVER_IP, SERVER_PORT } from '../config/api';
+
+/**
+ * Utility giúp xử lý các vấn đề về kết nối mạng
+ */
+const NetworkHelper = {
+  /**
+   * Kiểm tra kết nối tới server
+   * @param url URL server cần kiểm tra
+   * @returns Kết quả kiểm tra
+   */
+  testServerConnection: async (url: string) => {
     try {
-      console.log(`Testing connection to: ${baseUrl}/api/Product`);
-      
-      const response = await fetch(`${baseUrl}/api/Product`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        return {
-          success: false,
-          message: `Server returned error: ${response.status} ${response.statusText}`,
-          details: { status: response.status, statusText: response.statusText }
-        };
-      }
-
-      const data = await response.json();
+      const response = await axios.get(url, { timeout: 5000 });
       return {
         success: true,
-        message: `Successfully connected! Found ${Array.isArray(data) ? data.length : 0} products`,
-        details: { productCount: Array.isArray(data) ? data.length : 0 }
+        status: response.status,
+        message: `Kết nối thành công (${response.status})`
       };
-
     } catch (error: any) {
-      let message = 'Unknown connection error';
-      
-      if (error.message?.includes('Network request failed')) {
-        message = 'Cannot connect to server. Please check:\n1. Server is running on port 8000\n2. IP address is correct\n3. Same WiFi network';
-      } else if (error.message?.includes('timeout')) {
-        message = 'Connection timeout. Server may be slow or unreachable';
-      } else if (error.message?.includes('fetch')) {
-        message = 'Network error. Check internet connection';
-      } else {
-        message = error.message || 'Connection failed';
+      // Nếu server tồn tại nhưng trả về lỗi (404, 500, etc.)
+      if (error.response) {
+        return {
+          success: true, // Vẫn coi là thành công vì server tồn tại
+          status: error.response.status,
+          message: `Server tồn tại nhưng trả về status ${error.response.status}`
+        };
       }
-
+      
+      // Lỗi không kết nối được
       return {
         success: false,
-        message,
-        details: { error: error.message }
+        status: 0,
+        message: error.message || 'Không thể kết nối đến server'
       };
     }
+  },
+
+  /**
+   * Tạo một request có timeout
+   * @param apiCall Promise của API call
+   * @param timeout Thời gian timeout (ms)
+   * @returns Promise với timeout
+   */
+  withTimeout: <T>(apiCall: Promise<T>, timeout: number = 5000): Promise<T> => {
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('API request timeout')), timeout)
+    );
+    
+    return Promise.race([apiCall, timeoutPromise]);
+  },
+
+  /**
+   * Kiểm tra xem backend có hoạt động không
+   * @returns Trạng thái hoạt động của backend
+   */
+  isBackendAlive: async (): Promise<boolean> => {
+    try {
+      const result = await NetworkHelper.testServerConnection(
+        `http://${SERVER_IP}:${SERVER_PORT}/api/Product`
+      );
+      return result.success;
+    } catch (error) {
+      console.error('❌ Error checking backend:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Lấy thông tin mạng hiện tại của thiết bị
+   * @returns Thông tin mạng
+   */
+  getNetworkInfo: () => {
+    return {
+      platform: Platform.OS,
+      version: Platform.Version,
+      isConnected: true // Giả định thiết bị đã kết nối (cần NetInfo để kiểm tra thực tế)
+    };
+  },
+
+  /**
+   * Tạo một API request với retry tự động nếu thất bại
+   * @param apiCall Hàm gọi API
+   * @param retryCount Số lần retry
+   * @param retryDelay Thời gian chờ giữa các lần retry (ms)
+   * @returns Kết quả API hoặc lỗi sau khi đã retry
+   */
+  withRetry: async <T>(
+    apiCall: () => Promise<T>,
+    retryCount: number = 3,
+    retryDelay: number = 1000
+  ): Promise<T> => {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt < retryCount; attempt++) {
+      try {
+        return await apiCall();
+      } catch (error) {
+        console.log(`Retry attempt ${attempt + 1}/${retryCount} failed`);
+        lastError = error;
+        
+        // Chờ trước khi retry
+        if (attempt < retryCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+    
+    throw lastError;
   }
-
-  static getSetupInstructions(): string {
-    return `
-🔧 HƯỚNG DẪN SETUP BACKEND:
-
-1️⃣ Khởi chạy backend:
-   cd server_app-main
-   npm install
-   npm start
-
-2️⃣ Tìm địa chỉ IP máy tính:
-   Windows: ipconfig
-   Mac/Linux: ifconfig
-   
-3️⃣ Cập nhật IP trong productService.ts:
-   const API_BASE_URL = 'http://YOUR_IP:8000';
-   
-4️⃣ Đảm bảo cùng mạng WiFi:
-   - Máy tính và điện thoại cùng WiFi
-   - Tắt firewall nếu cần
-   
-5️⃣ Kiểm tra database:
-   - MongoDB đã có dữ liệu sản phẩm
-   - Kết nối database thành công
-
-📱 Test trên browser: http://YOUR_IP:8000/api/Product
-    `;
-  }
-
-  static async findLocalIP(): Promise<string[]> {
-    // This is a placeholder - in React Native we can't directly get local IP
-    // Users need to find it manually using ipconfig/ifconfig
-    return [
-      '192.168.1.100', // Common router IP range
-      '192.168.0.100',
-      '10.0.0.100',
-      'localhost'
-    ];
-  }
-}
+};
 
 export default NetworkHelper; 

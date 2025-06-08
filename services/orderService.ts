@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
+import axios from 'axios';
 
 export interface OrderData {
   id_user: string;
@@ -38,6 +39,30 @@ export interface OrderFormData {
   email: string;
 }
 
+export interface OrderSummary {
+  _id: string;
+  id_user: string;
+  address: string;
+  total: number;
+  status: string;
+  pay: boolean;
+  id_payment: string;
+  id_note: string;
+  feeship: number;
+  id_coupon?: string;
+  create_time: string;
+}
+
+export interface OrderDetail {
+  _id: string;
+  id_order: string;
+  id_product: string;
+  name_product: string;
+  price_product: number;
+  count: number;
+  size: string;
+}
+
 const orderService = {
   // Create note (delivery information)
   createNote: async (noteData: NoteData): Promise<any> => {
@@ -62,23 +87,17 @@ const orderService = {
   },
 
   // Create order
-  createOrder: async (orderData: OrderData): Promise<any> => {
+  createOrder: async (data: OrderData): Promise<any> => {
     try {
-      const response = await fetch(`${ORDER_API}/order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create order');
-      }
-
-      return await response.json();
+      console.log('📦 Creating order with data:', data);
+      
+      // Gọi API tạo đơn hàng
+      const response = await axios.post(ORDER_API, data);
+      
+      console.log('✅ Order created successfully:', response.data);
+      return response.data;
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('❌ Error creating order:', error);
       throw error;
     }
   },
@@ -163,6 +182,44 @@ const orderService = {
     } catch (error) {
       console.error('Error placing order:', error);
       return false;
+    }
+  },
+
+  // Lấy tất cả đơn hàng của người dùng
+  getUserOrders: async (userId: string): Promise<OrderSummary[]> => {
+    try {
+      console.log('📋 Fetching orders for user:', userId);
+      // Sử dụng Payment/order/[id] endpoint theo cấu trúc backend
+      const response = await axios.get(`${API_URL}/Payment/order/${userId}`);
+      
+      if (response.data) {
+        console.log(`✅ Fetched ${response.data.length} orders`);
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching user orders:', error);
+      return [];
+    }
+  },
+
+  // Lấy chi tiết một đơn hàng
+  getOrderDetails: async (orderId: string): Promise<OrderDetail[]> => {
+    try {
+      console.log('🔍 Fetching details for order:', orderId);
+      // Sử dụng Payment/order/detail/[id] endpoint theo cấu trúc backend
+      const response = await axios.get(`${API_URL}/Payment/order/detail/${orderId}`);
+      
+      if (response.data) {
+        console.log(`✅ Fetched ${response.data.length} order details`);
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching order details:', error);
+      return [];
     }
   },
 };

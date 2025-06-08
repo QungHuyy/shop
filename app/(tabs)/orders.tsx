@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import orderHistoryService, { OrderHistory } from '../../services/orderHistoryService';
+import NetworkHelper from '../../utils/networkHelper';
 
 type OrderStatus = '1' | '2' | '3' | '4' | '0';
 
@@ -79,7 +80,39 @@ export default function OrdersScreen() {
     
     try {
       if (showLoading) setLoading(true);
-      const orderHistory = await orderHistoryService.getOrderHistory(user._id);
+      
+      console.log(`Loading orders for user ${user._id}`);
+      
+      // Tìm kiếm đơn hàng với nhiều lần thử nếu thất bại
+      let orderHistory;
+      try {
+        // Sử dụng NetworkHelper.withTimeout để tránh request bị treo
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 5000)
+        );
+        
+        // Race giữa API call và timeout
+        const fetchPromise = orderHistoryService.getOrderHistory(user._id);
+        orderHistory = await Promise.race([fetchPromise, timeoutPromise]) as OrderHistory[];
+        
+        // Kiểm tra kết quả để đảm bảo nó là mảng
+        if (!Array.isArray(orderHistory)) {
+          console.error('Invalid response format - not an array:', orderHistory);
+          throw new Error('Định dạng dữ liệu không hợp lệ');
+        }
+      } catch (apiError) {
+        console.error('API call failed, trying fallback:', apiError);
+        
+        // Fallback: Sử dụng getUserOrders thay thế
+        orderHistory = await orderHistoryService.getUserOrders(user._id);
+        
+        if (!Array.isArray(orderHistory)) {
+          console.error('Fallback also failed with invalid format:', orderHistory);
+          throw new Error('Không thể tải dữ liệu đơn hàng');
+        }
+      }
+      
+      console.log(`Successfully loaded ${orderHistory.length} orders`);
       
       // Check for status changes
       if (allOrders.length > 0) {
@@ -89,7 +122,14 @@ export default function OrdersScreen() {
       setAllOrders(orderHistory);
     } catch (error) {
       console.error('Error loading orders:', error);
-      Alert.alert('Lỗi', 'Không thể tải lịch sử đơn hàng');
+      
+      // Nếu có dữ liệu cũ, giữ nguyên để tránh màn hình trống
+      if (allOrders.length === 0) {
+        Alert.alert(
+          'Lỗi kết nối', 
+          'Không thể tải lịch sử đơn hàng. Vui lòng kiểm tra kết nối mạng và thử lại.'
+        );
+      }
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -100,14 +140,30 @@ export default function OrdersScreen() {
     
     try {
       setAutoRefreshing(true);
-      const orderHistory = await orderHistoryService.getOrderHistory(user._id);
       
-      // Check for status changes
-      if (allOrders.length > 0) {
-        checkForStatusChanges(allOrders, orderHistory);
+      // Tìm kiếm đơn hàng với timeout để tránh request bị treo
+      try {
+        // Race giữa API call và timeout để tránh request bị treo
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Auto refresh timeout')), 5000)
+        );
+        
+        const fetchPromise = orderHistoryService.getOrderHistory(user._id);
+        const orderHistory = await Promise.race([fetchPromise, timeoutPromise]) as OrderHistory[];
+        
+        // Kiểm tra kết quả để đảm bảo nó là mảng
+        if (Array.isArray(orderHistory)) {
+          // Check for status changes
+          if (allOrders.length > 0) {
+            checkForStatusChanges(allOrders, orderHistory);
+          }
+          
+          setAllOrders(orderHistory);
+        }
+      } catch (error) {
+        console.error('Auto refresh API error:', error);
+        // Không hiển thị lỗi cho người dùng vì đây là auto refresh
       }
-      
-      setAllOrders(orderHistory);
     } catch (error) {
       console.error('Auto refresh error:', error);
     } finally {
