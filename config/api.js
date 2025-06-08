@@ -27,7 +27,7 @@ const CHATBOT_API = `${API_URL}/Chatbot`;
 const IMAGE_SEARCH_API = `${API_URL}/ImageSearch`;
 
 // API tìm kiếm hình ảnh - đây là API của bên thứ ba, không phải server của bạn
-const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai.onrender.com/search-by-image`;
+const EXTERNAL_IMAGE_SEARCH_API = `https://https://search-by-ai-e2av.onrender.com/search-by-image`;
 
 // Hàm trợ giúp để kiểm tra kết nối
 const getConnectionInstructions = () => {

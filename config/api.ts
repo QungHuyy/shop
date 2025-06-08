@@ -28,7 +28,7 @@ export const CHATBOT_API = `${API_URL}/Chatbot`;
 export const IMAGE_SEARCH_API = `${API_URL}/ImageSearch`;
 
 // API tìm kiếm hình ảnh - đây là API của bên thứ ba, không phải server của bạn
-export const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai.onrender.com/search-by-image`;
+export const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai-e2av.onrender.com/search-by-image`;
 
 // Hàm trợ giúp để kiểm tra kết nối
 export const getConnectionInstructions = () => {
