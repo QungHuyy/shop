@@ -1,6 +1,5 @@
 import { Product } from './productService';
-
-const API_BASE_URL = 'http://192.168.1.45:8000'; // Thay IP này bằng IP máy tính của bạn
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
 
 export interface FavoriteItem {
   _id: string;
@@ -33,7 +32,7 @@ const favoriteService = {
     try {
       console.log('🔍 Getting favorites for user:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/api/Favorite/${userId}`);
+      const response = await fetch(`${FAVORITE_API}/${userId}`);
       const result: FavoriteResponse = await response.json();
       
       if (result.success && result.data) {
@@ -54,7 +53,7 @@ const favoriteService = {
     try {
       console.log('❤️ Adding favorite:', { userId, productId });
       
-      const response = await fetch(`${API_BASE_URL}/api/Favorite`, {
+      const response = await fetch(`${FAVORITE_API}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +87,7 @@ const favoriteService = {
     try {
       console.log('💔 Removing favorite:', { userId, productId });
       
-      const response = await fetch(`${API_BASE_URL}/api/Favorite`, {
+      const response = await fetch(`${FAVORITE_API}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +119,7 @@ const favoriteService = {
   // Kiểm tra sản phẩm có trong yêu thích không
   checkFavorite: async (userId: string, productId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Favorite/check/${userId}/${productId}`);
+      const response = await fetch(`${FAVORITE_API}/check/${userId}/${productId}`);
       const result: CheckFavoriteResponse = await response.json();
       
       if (result.success) {

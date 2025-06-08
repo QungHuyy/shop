@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../../config/api';
+
 import {
   View,
   Text,
@@ -48,7 +50,7 @@ export default function VouchersScreen() {
       setLoading(true);
       
       // Lấy tất cả mã giảm giá từ server
-      const response = await fetch('http://192.168.1.45:8000/api/admin/coupon');
+      const response = await fetch(COUPON_API);
       const data = await response.json();
       const availableCoupons = data.coupons || [];
       

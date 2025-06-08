@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { CART_API, API_URL } from '../config/api'; // Import centralized API config
 
 export interface CartItem {
   id_cart: string;
@@ -17,9 +18,6 @@ export interface CartSummary {
   totalPrice: number;
   totalItems: number;
 }
-
-// Thay đổi IP này thành địa chỉ IP của máy chủ backend của bạn
-const API_URL = 'http://192.168.1.45:8000/api';
 
 // Key lưu trữ giỏ hàng cho người dùng chưa đăng nhập
 const CART_STORAGE_KEY = 'cart_items';

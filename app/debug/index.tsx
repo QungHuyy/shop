@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../../config/api';
+
 import {
   View,
   Text,
@@ -26,7 +28,7 @@ export default function DebugScreen() {
     
     try {
       const testUrls = [
-        'http://192.168.1.100:8000',
+        API_BASE_URL,
         'http://192.168.0.100:8000', 
         'http://10.0.0.100:8000',
         'http://localhost:8000'
@@ -139,7 +141,7 @@ export default function DebugScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🌐 URLs thường dùng</Text>
           <View style={styles.urlCard}>
-            <Text style={styles.urlText}>• http://192.168.1.100:8000/api/Product</Text>
+            <Text style={styles.urlText}>• {PRODUCT_API}</Text>
             <Text style={styles.urlText}>• http://192.168.0.100:8000/api/Product</Text>
             <Text style={styles.urlText}>• http://10.0.0.100:8000/api/Product</Text>
             <Text style={styles.urlText}>• http://localhost:8000/api/Product</Text>

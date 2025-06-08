@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import orderHistoryService from './orderHistoryService';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
 
-const API_BASE_URL = 'http://192.168.1.45:8000';
+import orderHistoryService from './orderHistoryService';
 
 export interface Coupon {
   _id: string;
@@ -18,7 +18,7 @@ const couponService = {
       console.log(`Checking coupon: ${code} for user: ${userId}`);
       
       // Gọi API kiểm tra mã giảm giá
-      const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/checking?code=${code}&id_user=${userId}`, {
+      const response = await fetch(`${COUPON_API}/promotion/checking?code=${code}&id_user=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ const couponService = {
     try {
       console.log(`Updating coupon: ${couponId}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/admin/coupon/promotion/${couponId}`, {
+      const response = await fetch(`${COUPON_API}/promotion/${couponId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ const couponService = {
     try {
       console.log(`Restoring coupon: ${couponId} for order: ${orderId}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/admin/coupon/restore`, {
+      const response = await fetch(`${COUPON_API}/restore`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

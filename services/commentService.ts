@@ -1,7 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Base URL API
-const API_BASE_URL = 'http://192.168.1.45:8000';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
 
 export interface Comment {
   _id: string;
@@ -33,7 +31,7 @@ const commentService = {
     try {
       console.log(`🔍 Loading comments for product: ${productId}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/Comment/${productId}`);
+      const response = await fetch(`${COMMENT_API}/${productId}`);
       const comments = await response.json();
       
       console.log('✅ Comments loaded:', comments.length);
@@ -49,7 +47,7 @@ const commentService = {
     try {
       console.log(`🔍 Checking review permission for user: ${userId}, product: ${productId}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/Comment/check/${productId}/${userId}`);
+      const response = await fetch(`${COMMENT_API}/check/${productId}/${userId}`);
       const result = await response.json();
       
       console.log('✅ Review check result:', result);
@@ -68,7 +66,7 @@ const commentService = {
     try {
       console.log(`📝 Submitting comment for product: ${productId}`, commentData);
       
-      const response = await fetch(`${API_BASE_URL}/api/Comment/${productId}`, {
+      const response = await fetch(`${COMMENT_API}/${productId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

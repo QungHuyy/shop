@@ -1,8 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Thay đổi IP này thành địa chỉ IP của máy chủ backend của bạn
-const API_URL = 'http://192.168.1.45:8000/api/User';
+import { USER_API, API_URL } from '../config/api'; // Import centralized API config
 
 // Cấu hình axios
 axios.interceptors.request.use(
@@ -56,7 +54,7 @@ const authService = {
     try {
       console.log('🔍 Verifying user by ID:', userId);
       
-      const response = await fetch(`http://192.168.1.45:8000/api/User/${userId}`);
+      const response = await fetch(`${USER_API}/${userId}`);
       console.log('📡 Verify response status:', response.status);
       
       if (response.ok) {
@@ -216,11 +214,11 @@ const authService = {
       };
 
       console.log('🔄 Updating profile with data:', updateData);
-      console.log('🌐 API URL:', 'http://192.168.1.45:8000/api/User');
+      console.log('🌐 API URL:', USER_API);
       console.log('📝 Current user email/phone:', { email: currentUser.email, phone: currentUser.phone });
       console.log('📝 New email/phone:', { email: data.email, phone: data.phone });
 
-      const response = await fetch('http://192.168.1.45:8000/api/User', {
+      const response = await fetch(USER_API, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -298,43 +296,26 @@ const authService = {
     }
   },
 
-  changePassword: async (data: ChangePasswordData): Promise<void> => {
+  changePassword: async (data: ChangePasswordData): Promise<boolean> => {
     try {
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
         throw new Error('Chưa đăng nhập');
       }
 
-      // Đầu tiên, kiểm tra mật khẩu hiện tại bằng cách thử đăng nhập lại
-      try {
-        await authService.signIn({
-          username: currentUser.username,
-          password: data.currentPassword
-        });
-      } catch (error) {
-        throw new Error('Mật khẩu hiện tại không đúng');
-      }
-
-      // Nếu mật khẩu hiện tại đúng, cập nhật mật khẩu mới
-      const updateData = {
-        _id: currentUser._id,
-        fullname: currentUser.fullname,
-        username: currentUser.username,
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        password: data.newPassword, // Mật khẩu mới
-        gender: '', 
-        // Không set id_permission để backend giữ nguyên giá trị hiện tại
-      };
-
       console.log('Changing password for user:', currentUser._id);
-
-      const response = await fetch('http://192.168.1.45:8000/api/User', {
+  
+      const response = await fetch(USER_API, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify({
+          _id: currentUser._id,
+          username: currentUser.username,
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        }),
       });
 
       const result = await response.text();
@@ -342,7 +323,7 @@ const authService = {
 
       if (result === "Thanh Cong" || response.status === 200) {
         console.log('Password changed successfully');
-        return;
+        return true;
       } else if (result === "Email Da Ton Tai") {
         throw new Error('Email đã được sử dụng');
       } else if (result === "Phone Da Ton Tai") {

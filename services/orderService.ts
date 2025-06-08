@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE_URL = 'http://192.168.1.45:8000';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
 
 export interface OrderData {
   id_user: string;
@@ -43,7 +42,7 @@ const orderService = {
   // Create note (delivery information)
   createNote: async (noteData: NoteData): Promise<any> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Note`, {
+      const response = await fetch(`${API_URL}/Note`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +64,7 @@ const orderService = {
   // Create order
   createOrder: async (orderData: OrderData): Promise<any> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Payment/order`, {
+      const response = await fetch(`${ORDER_API}/order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +86,7 @@ const orderService = {
   // Create detail order
   createDetailOrder: async (detailData: DetailOrderData): Promise<any> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/DetailOrder`, {
+      const response = await fetch(`${API_URL}/DetailOrder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

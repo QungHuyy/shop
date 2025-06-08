@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE_URL = 'http://192.168.1.45:8000';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API } from '../config/api';
 
 export interface OrderHistory {
   _id: string;
@@ -61,7 +60,7 @@ const orderHistoryService = {
     try {
       console.log(`Fetching order history for user ${userId}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/Payment/order/${userId}`, {
+      const response = await fetch(`${ORDER_API}/order/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +98,7 @@ const orderHistoryService = {
   // Get order detail by order ID
   getOrderDetail: async (orderId: string): Promise<OrderHistory> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Payment/order/detail/${orderId}`, {
+      const response = await fetch(`${ORDER_API}/order/detail/${orderId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +119,7 @@ const orderHistoryService = {
   // Get order items (detail_order)
   getOrderItems: async (orderId: string): Promise<OrderDetail[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/DetailOrder/${orderId}`, {
+      const response = await fetch(`${API_URL}/DetailOrder/${orderId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +143,7 @@ const orderHistoryService = {
       // Lấy thông tin đơn hàng trước khi hủy để kiểm tra mã giảm giá
       const orderDetail = await orderHistoryService.getOrderDetail(orderId);
       
-      const response = await fetch(`${API_BASE_URL}/api/admin/Order/cancelorder?id=${orderId}`, {
+      const response = await fetch(`${API_URL}/admin/Order/cancelorder?id=${orderId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

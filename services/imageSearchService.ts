@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API, EXTERNAL_IMAGE_SEARCH_API } from '../config/api';
 
-const API_BASE_URL = 'http://192.168.1.45:8000/api';
+import { Alert } from 'react-native';
 
 export interface ImageSearchResult {
   _id: string;
@@ -112,7 +112,7 @@ class ImageSearchService {
       console.log('🖼️ Uploading image for search:', imageUri);
 
       // Gọi API search by image thực (giống web client)
-      const searchResponse = await fetch('https://search-by-ai.onrender.com/search-by-image', {
+      const searchResponse = await fetch(EXTERNAL_IMAGE_SEARCH_API, {
         method: 'POST',
         body: formData,
       });
@@ -156,7 +156,7 @@ class ImageSearchService {
       console.log('🎭 Running simulation search...');
       
       // Lấy tất cả sản phẩm để simulate search
-      const allProductsResponse = await fetch(`${API_BASE_URL}/Product`);
+      const allProductsResponse = await fetch(PRODUCT_API);
       const allProducts = await allProductsResponse.json();
 
       // Simulate việc tìm sản phẩm tương tự

@@ -35,14 +35,13 @@ export interface SaleProduct extends Product {
   salePrice: number;
 }
 
-// API Base URL - Giống như web client
-const API_BASE_URL = 'http://192.168.1.45:8000'; // Thay IP này bằng IP máy tính của bạn
+import { API_URL, API_BASE_URL, USER_API, PRODUCT_API, CART_API, FAVORITE_API, COMMENT_API, COUPON_API, ORDER_API, CHATBOT_API, IMAGE_SEARCH_API, SALE_API } from '../config/api';
 
 const productService = {
   // Lấy danh sách sản phẩm đang sale từ server (như client_app-main)
   getSaleProductsFromServer: async (): Promise<Product[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/sale/list/product`);
+      const response = await fetch(`${SALE_API}/list/product`);
       const saleList = await response.json();
       
       // Tạo mảng chứa thông tin đầy đủ của sản phẩm sale
@@ -73,7 +72,7 @@ const productService = {
   // Lấy tất cả sản phẩm từ server với thông tin promotion (cách hiệu quả hơn)
   getAllProducts: async (): Promise<Product[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Product`);
+      const response = await fetch(`${PRODUCT_API}`);
       const products = await response.json();
       
       // Lấy danh sách sản phẩm sale
@@ -105,7 +104,7 @@ const productService = {
   // Lấy sản phẩm theo giới tính từ server với thông tin promotion
   getProductsByGender: async (gender: string, limit?: number): Promise<Product[]> => {
     try {
-      let url = `${API_BASE_URL}/api/Product/category?id_category=all`;
+      let url = `${PRODUCT_API}/category?id_category=all`;
       if (gender !== 'all') {
         url += `&gender=${gender}`;
       }
@@ -148,7 +147,7 @@ const productService = {
   getProductsPagination: async (page: number = 1, count: number = 10, search?: string, category?: string, gender?: string): Promise<Product[]> => {
     try {
       // Sử dụng endpoint đơn giản hơn trước, rồi pagination sau
-      let url = `${API_BASE_URL}/api/Product/category?id_category=all`;
+      let url = `${PRODUCT_API}/category?id_category=all`;
       
       if (gender && gender !== 'all') {
         url += `&gender=${gender}`;
@@ -195,7 +194,7 @@ const productService = {
   // Kiểm tra khuyến mãi cho một sản phẩm cụ thể (giữ lại để tương thích)
   checkProductSale: async (productId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/sale/list/${productId}`);
+      const response = await fetch(`${SALE_API}/list/${productId}`);
       const result = await response.json();
       
       if (result.msg === "Thanh Cong" && result.sale) {
@@ -422,7 +421,7 @@ const productService = {
       console.log(`🔍 Loading product detail for ID: ${productId}`);
       
       // Gọi API lấy chi tiết sản phẩm
-      const response = await fetch(`${API_BASE_URL}/api/Product/${productId}`);
+      const response = await fetch(`${PRODUCT_API}/${productId}`);
       const product = await response.json();
       
       if (!product || !product._id) {
@@ -489,7 +488,7 @@ const productService = {
   // Lấy thống kê đánh giá và số lượng đã bán
   getProductStats: async (productId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Product/stats/${productId}`);
+      const response = await fetch(`${PRODUCT_API}/stats/${productId}`);
       const stats = await response.json();
       return stats;
     } catch (error) {
