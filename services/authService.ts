@@ -74,7 +74,7 @@ const authService = {
   signUp: async (data: SignUpData): Promise<AuthResponse> => {
     try {
       console.log('Gửi yêu cầu đăng ký với dữ liệu:', data);
-      console.log('URL đăng ký:', API_URL);
+      console.log('URL đăng ký:', USER_API);
       
       // Thêm các trường mặc định với ID permission cố định
       const signUpData = {
@@ -84,7 +84,7 @@ const authService = {
       };
       
       console.log('Dữ liệu gửi lên server:', signUpData);
-      const response = await axios.post(API_URL, signUpData);
+      const response = await axios.post(USER_API, signUpData);
       console.log('Phản hồi từ server khi đăng ký:', response.data);
 
       if (response.data === "User Da Ton Tai") {
@@ -115,9 +115,9 @@ const authService = {
   signIn: async (data: SignInData): Promise<AuthResponse> => {
     try {
       console.log('Gọi API đăng nhập với:', data);
-      console.log('URL API:', `${API_URL}/detail/login`);
+      console.log('URL API:', `${USER_API}/detail/login`);
       
-      const response = await axios.get(`${API_URL}/detail/login`, {
+      const response = await axios.get(`${USER_API}/detail/login`, {
         params: {
           username: data.username,
           password: data.password

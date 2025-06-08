@@ -5,33 +5,32 @@
  * Các dịch vụ sẽ tự động sử dụng cấu hình từ file này
  */
 
-
-export const SERVER_IP = '192.168.1.82';
-export const SERVER_PORT = 8000;
+const SERVER_IP = '192.168.1.82';
+const SERVER_PORT = 8000;
 
 // Các URL cơ sở
-export const API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
-export const API_URL = `${API_BASE_URL}/api`;
+const API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
+const API_URL = `${API_BASE_URL}/api`;
 
 // Các endpoint cụ thể - Đã sửa để khớp với backend
-export const USER_API = `${API_URL}/User`;
-export const PRODUCT_API = `${API_URL}/Product`;
-export const CART_API = `${API_URL}/Cart`;
-export const FAVORITE_API = `${API_URL}/Favorite`;
-export const COMMENT_API = `${API_URL}/Comment`;
-export const COUPON_API = `${API_URL}/admin/coupon`;
-export const ORDER_API = `${API_URL}/Payment`; // Sửa lại thành Payment theo backend
-export const DETAIL_ORDER_API = `${API_URL}/DetailOrder`; // Thêm endpoint cho chi tiết đơn hàng
-export const NOTE_API = `${API_URL}/Note`; // Thêm endpoint cho ghi chú
-export const SALE_API = `${API_URL}/admin/sale`;
-export const CHATBOT_API = `${API_URL}/Chatbot`;
-export const IMAGE_SEARCH_API = `${API_URL}/ImageSearch`;
+const USER_API = `${API_URL}/User`;
+const PRODUCT_API = `${API_URL}/Product`;
+const CART_API = `${API_URL}/Cart`;
+const FAVORITE_API = `${API_URL}/Favorite`;
+const COMMENT_API = `${API_URL}/Comment`;
+const COUPON_API = `${API_URL}/admin/coupon`;
+const ORDER_API = `${API_URL}/Payment`; // Sửa lại thành Payment theo backend
+const DETAIL_ORDER_API = `${API_URL}/DetailOrder`; // Thêm endpoint cho chi tiết đơn hàng
+const NOTE_API = `${API_URL}/Note`; // Thêm endpoint cho ghi chú
+const SALE_API = `${API_URL}/admin/sale`;
+const CHATBOT_API = `${API_URL}/Chatbot`;
+const IMAGE_SEARCH_API = `${API_URL}/ImageSearch`;
 
 // API tìm kiếm hình ảnh - đây là API của bên thứ ba, không phải server của bạn
-export const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai.onrender.com/search-by-image`;
+const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai.onrender.com/search-by-image`;
 
 // Hàm trợ giúp để kiểm tra kết nối
-export const getConnectionInstructions = () => {
+const getConnectionInstructions = () => {
   return `
 🔧 HƯỚNG DẪN SETUP BACKEND:
 
@@ -59,8 +58,8 @@ export const getConnectionInstructions = () => {
   `;
 };
 
-// Export tất cả biến như một đối tượng để dễ import
-export default {
+// Export tất cả biến sử dụng module.exports (CommonJS)
+module.exports = {
   SERVER_IP,
   SERVER_PORT,
   API_BASE_URL,
