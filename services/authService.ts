@@ -304,35 +304,36 @@ const authService = {
       }
 
       console.log('Changing password for user:', currentUser._id);
-  
-      const response = await fetch(USER_API, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          _id: currentUser._id,
-          username: currentUser.username,
-          currentPassword: data.currentPassword,
-          newPassword: data.newPassword,
-        }),
+      console.log('Change password payload:', {
+        userId: currentUser._id,
+        oldPassword: '***',
+        newPassword: '***'
       });
 
-      const result = await response.text();
-      console.log('Change password response:', result);
+      // Sử dụng API mới /change-password
+      const response = await axios.post(`${USER_API}/change-password`, {
+        userId: currentUser._id,
+        oldPassword: data.currentPassword,
+        newPassword: data.newPassword
+      });
 
-      if (result === "Thanh Cong" || response.status === 200) {
+      console.log('Change password response:', response.data);
+
+      // Kiểm tra kết quả từ API mới
+      if (response.data.success) {
         console.log('Password changed successfully');
         return true;
-      } else if (result === "Email Da Ton Tai") {
-        throw new Error('Email đã được sử dụng');
-      } else if (result === "Phone Da Ton Tai") {
-        throw new Error('Số điện thoại đã được sử dụng');
       } else {
-        throw new Error('Đổi mật khẩu thất bại');
+        throw new Error(response.data.message || 'Đổi mật khẩu thất bại');
       }
     } catch (error: any) {
       console.error('Error changing password:', error);
+      // Cải thiện thông báo lỗi chi tiết hơn
+      if (error.response) {
+        console.error('Server error:', error.response.data);
+        const errorMessage = error.response.data.message || 'Đổi mật khẩu thất bại';
+        throw new Error(errorMessage);
+      }
       throw new Error(error.message || 'Đổi mật khẩu thất bại');
     }
   },

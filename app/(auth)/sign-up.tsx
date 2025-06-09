@@ -60,13 +60,21 @@ export default function SignUp() {
     try {
       setError('');
       const { confirmPassword, ...signUpData } = values;
+      
+      // Hiển thị loading trạng thái đăng ký
+      showSuccess('Đang đăng ký tài khoản...');
+      
       const response = await authService.signUp(signUpData);
       
       if (response) {
-        showSuccess('Đăng ký thành công! Bạn đã được đăng nhập tự động.');
+        // Hiển thị thông báo thành công rõ ràng hơn
+        showSuccess('Đăng ký thành công! Chào mừng bạn đến với ứng dụng.');
+        
+        // Đảm bảo thông báo hiển thị đủ lâu trước khi chuyển trang
         setTimeout(() => {
-          router.replace('/');
-        }, 1500);
+          // Chuyển đến trang chủ sau khi đăng ký thành công
+          router.replace('/(tabs)');
+        }, 2000);
       }
     } catch (err: any) {
       const message = err.message || 'Đăng ký thất bại. Vui lòng thử lại.';

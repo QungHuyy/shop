@@ -10,12 +10,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../../contexts/AuthContext';
 import authService, { ChangePasswordData } from '../../services/authService';
+import { Ionicons } from '@expo/vector-icons';
+import { useNotification } from '../../contexts/NotificationContext';
 
 interface ChangePasswordFormValues {
   currentPassword: string;
@@ -25,6 +28,8 @@ interface ChangePasswordFormValues {
 
 export default function ChangePassword() {
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useNotification();
+  const [loading, setLoading] = useState(false);
   const newPasswordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
@@ -32,7 +37,8 @@ export default function ChangePassword() {
     currentPassword: Yup.string()
       .required('Mật khẩu hiện tại là bắt buộc'),
     newPassword: Yup.string()
-      .required('Mật khẩu mới là bắt buộc'),
+      .required('Mật khẩu mới là bắt buộc')
+      .min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
     confirmPassword: Yup.string()
       .oneOf([Yup.ref('newPassword')], 'Xác nhận mật khẩu không khớp')
       .required('Xác nhận mật khẩu là bắt buộc'),
@@ -48,6 +54,11 @@ export default function ChangePassword() {
 
   const handleSubmit = async (values: ChangePasswordFormValues, { setSubmitting, resetForm }: any) => {
     try {
+      setLoading(true);
+      
+      // Hiển thị trạng thái đang xử lý
+      showSuccess('Đang xử lý...');
+      
       const changePasswordData: ChangePasswordData = {
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
@@ -55,20 +66,32 @@ export default function ChangePassword() {
 
       await authService.changePassword(changePasswordData);
       
+      // Hiển thị thông báo thành công rõ ràng hơn
       Alert.alert(
-        'Thành công', 
-        'Đổi mật khẩu thành công!',
+        'Thành công',
+        'Mật khẩu của bạn đã được cập nhật thành công!',
         [
-          { text: 'OK', onPress: () => {
-            resetForm();
-            router.back();
-          }}
+          { 
+            text: 'OK', 
+            onPress: () => {
+              resetForm();
+              router.back();
+            }
+          }
         ]
       );
+      
     } catch (error: any) {
       console.error('Lỗi khi đổi mật khẩu:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể đổi mật khẩu');
+      
+      // Hiển thị thông báo lỗi chi tiết bằng Alert
+      Alert.alert(
+        'Lỗi',
+        error.message || 'Không thể đổi mật khẩu. Vui lòng thử lại sau.',
+        [{ text: 'OK' }]
+      );
     } finally {
+      setLoading(false);
       setSubmitting(false);
     }
   };
@@ -84,8 +107,8 @@ export default function ChangePassword() {
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>← Quay lại</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Đổi mật khẩu</Text>
           <View style={styles.placeholder} />
@@ -128,6 +151,7 @@ export default function ChangePassword() {
                       returnKeyType="next"
                       onSubmitEditing={() => newPasswordRef.current?.focus()}
                       blurOnSubmit={false}
+                      editable={!loading}
                     />
                     {touched.currentPassword && errors.currentPassword && (
                       <Text style={styles.errorText}>{errors.currentPassword}</Text>
@@ -150,6 +174,7 @@ export default function ChangePassword() {
                       returnKeyType="next"
                       onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                       blurOnSubmit={false}
+                      editable={!loading}
                     />
                     {touched.newPassword && errors.newPassword && (
                       <Text style={styles.errorText}>{errors.newPassword}</Text>
@@ -171,6 +196,7 @@ export default function ChangePassword() {
                       secureTextEntry
                       returnKeyType="done"
                       onSubmitEditing={() => handleSubmit()}
+                      editable={!loading}
                     />
                     {touched.confirmPassword && errors.confirmPassword && (
                       <Text style={styles.errorText}>{errors.confirmPassword}</Text>
@@ -178,13 +204,18 @@ export default function ChangePassword() {
                   </View>
 
                   <TouchableOpacity
-                    style={[styles.changeButton, isSubmitting && styles.changeButtonDisabled]}
+                    style={[styles.changeButton, (isSubmitting || loading) && styles.changeButtonDisabled]}
                     onPress={() => handleSubmit()}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || loading}
                   >
-                    <Text style={styles.changeButtonText}>
-                      {isSubmitting ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu'}
-                    </Text>
+                    {loading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.changeButtonText}>Đang xử lý...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.changeButtonText}>Đổi mật khẩu</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               )}
@@ -249,38 +280,38 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#ffeaa7',
+    backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
   },
   iconText: {
-    fontSize: 40,
+    fontSize: 32,
   },
   description: {
-    fontSize: 14,
-    color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
+    color: '#666',
+    lineHeight: 22,
   },
   form: {
-    width: '100%',
+    marginTop: 20,
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 16,
     marginBottom: 8,
+    fontWeight: '500',
+    color: '#333',
   },
   input: {
     backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: '#ced4da',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
     fontSize: 16,
   },
   inputError: {
@@ -288,32 +319,27 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#dc3545',
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 5,
   },
   changeButton: {
-    backgroundColor: '#28a745',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 20,
-    shadowColor: '#28a745',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: '#fed700',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
   },
   changeButtonDisabled: {
-    backgroundColor: '#6c757d',
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.7,
   },
   changeButtonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 
