@@ -10,8 +10,13 @@ export const SERVER_IP = '192.168.1.82';
 export const SERVER_PORT = 8000;
 
 // Các URL cơ sở
-export const API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
-export const API_URL = `${API_BASE_URL}/api`;
+// export const API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
+// export const API_URL = `${API_BASE_URL}/api`;
+
+
+
+export const API_BASE_URL = `https://server-app-main.onrender.com`;
+export const API_URL = `https://server-app-main.onrender.com/api`;
 
 // Các endpoint cụ thể - Đã sửa để khớp với backend
 export const USER_API = `${API_URL}/User`;
@@ -27,7 +32,6 @@ export const SALE_API = `${API_URL}/admin/sale`;
 export const CHATBOT_API = `${API_URL}/Chatbot`;
 export const IMAGE_SEARCH_API = `${API_URL}/ImageSearch`;
 
-// API tìm kiếm hình ảnh - đây là API của bên thứ ba, không phải server của bạn
 export const EXTERNAL_IMAGE_SEARCH_API = `https://search-by-ai-e2av.onrender.com/search-by-image`;
 
 // Hàm trợ giúp để kiểm tra kết nối
